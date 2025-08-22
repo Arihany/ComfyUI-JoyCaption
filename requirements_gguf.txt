@@ -1,0 +1,6 @@
+llama-cpp-python>=0.2.0
+# Optional GPU acceleration support, depends on user's CUDA version
+# Users can choose to install based on their CUDA version
+# Example: pip install llama-cpp-python --extra-index-url https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu121 
+# installation instructions: https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/llama_cpp_install.md
+# CUDA version: https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/llama_cpp_install.md#cuda-version-support
