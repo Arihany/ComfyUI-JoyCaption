@@ -23,7 +23,7 @@
 ## **自动安装脚本（推荐）**
 
 * 确保安装脚本保存在这里：  
-  `.\ComfyUI\custom_nodes\ComfyUI-MiniCPM\install_llama_official.py`
+  `.\ComfyUI\custom_nodes\ComfyUI-JoyCaption\install_llama_official.py`
 
 * 在命令提示符中（在步骤 1 中打开的），运行脚本：
 
@@ -75,5 +75,6 @@
 * 关闭 ComfyUI。
 * 重启 ComfyUI。
 * 硬刷新网页浏览器（`Ctrl+F5` 或 `Cmd+Shift+R`）。
+
 
 --- 
