@@ -16,8 +16,8 @@ class ImageBatchPath:
             }
         }
 
-    RETURN_TYPES = ("STRING", "IMAGE")
-    RETURN_NAMES = ("IMAGE_PATH", "IMAGE")
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("IMAGE", "IMAGE_PATH")
     OUTPUT_IS_LIST = (True, True)
     FUNCTION = "load_image_batch"
     CATEGORY = "🧪AILab/📝JoyCaption"
@@ -64,7 +64,7 @@ class ImageBatchPath:
                 print(f'\033[91mError loading {filename}: {str(e)}\033[0m')
                 continue
 
-        return (image_paths, images)
+        return (images, image_paths)
 
 class CaptionSaver:
     @classmethod
