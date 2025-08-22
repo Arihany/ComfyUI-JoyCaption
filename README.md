@@ -6,6 +6,7 @@ Joy Caption is a ComfyUI custom node powered by the LLaVA model for efficient, s
 
 ## News & Updates
 - **2025/08/22**: Update ComfyUI-JoyCaption to **v2.0.0** ( [update.md](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/update.md#v200-2025-08-22) )
+ ![Joycaption GGUF](example_workflows/JoyCaption-GGUF.png)
   - Added GGUF model support for better performance and compatibility
   - Fixed critical parameter handling issues (top_k, image format)
   - Improved console output (no more base64 spam)
@@ -323,5 +324,6 @@ The models are trained on diverse datasets, ensuring:
 * **llama-cpp-python**: [abetlen](https://github.com/abetlen/llama-cpp-python) - Python bindings for llama.cpp
 
 ## License
+
 
 This repository's code is released under the GPL-3.0 License.
