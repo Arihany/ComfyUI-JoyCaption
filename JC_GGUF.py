@@ -202,7 +202,7 @@ class JC_GGUF:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("STRING",)
     FUNCTION = "generate"
-    CATEGORY = "🧪AILab/📝JoyCaption-GGUF"
+    CATEGORY = "🧪AILab/📝JoyCaption"
 
     def __init__(self):
         self.predictor = None
@@ -291,7 +291,7 @@ class JC_GGUF_adv:
     RETURN_TYPES = ("STRING", "STRING")
     RETURN_NAMES = ("PROMPT", "STRING")
     FUNCTION = "generate"
-    CATEGORY = "🧪AILab/📝JoyCaption-GGUF"
+    CATEGORY = "🧪AILab/📝JoyCaption"
 
     def __init__(self):
         self.predictor = None
