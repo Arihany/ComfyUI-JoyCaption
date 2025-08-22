@@ -6,7 +6,7 @@ This guide helps you install `llama-cpp-python` with GPU (CUDA) support for Comf
 
 ### **1. Open ComfyUI's Command Prompt**
 
-* Go to `C:\ComfyUI_windows_portable\python_embeded`
+* Go to `.\ComfyUI_windows_portable\python_embeded`
 * In the address bar, type `cmd` and press Enter.
 
 ---
@@ -23,7 +23,7 @@ This guide helps you install `llama-cpp-python` with GPU (CUDA) support for Comf
 ## **Automatic Installation Script (Recommended)**
 
 * Make sure the installation script is saved here:  
-  `.\ComfyUI\custom_nodes\ComfyUI-JoyCaption\install_llama_official.py`
+  `.\ComfyUI\custom_nodes\ComfyUI-JoyCaption\llama_cpp_install.py`
 
 * In the command prompt (opened in step 1), run the script with:
 
@@ -80,4 +80,5 @@ The script will:
 * Hard refresh your web browser (`Ctrl+F5` or `Cmd+Shift+R`).
 
 ---
+
 
