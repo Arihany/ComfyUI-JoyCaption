@@ -1,0 +1,345 @@
+{
+  "id": "6cdda1b6-9bfc-4b5f-9d6b-60ef9a9d93fc",
+  "revision": 0,
+  "last_node_id": 22,
+  "last_link_id": 26,
+  "nodes": [
+    {
+      "id": 16,
+      "type": "ImageBatchPath",
+      "pos": [
+        -611.5386352539062,
+        298.06317138671875
+      ],
+      "size": [
+        242.22389221191406,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "shape": 6,
+          "type": "IMAGE",
+          "links": [
+            26
+          ]
+        },
+        {
+          "name": "IMAGE_PATH",
+          "shape": 6,
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageBatchPath"
+      },
+      "widgets_values": [
+        "O:\\images",
+        1,
+        2,
+        "sequential"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "JC_GGUF",
+      "pos": [
+        235.76669311523438,
+        298.06317138671875
+      ],
+      "size": [
+        298.5727233886719,
+        174
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "extra_options",
+          "shape": 7,
+          "type": "JOYCAPTION_EXTRA_OPTIONS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JC_GGUF"
+      },
+      "widgets_values": [
+        "JoyCaption Beta One (IQ4_XS)",
+        "GPU",
+        "Descriptive",
+        "any",
+        "Keep in Memory"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "PreviewAny",
+      "pos": [
+        563.1483154296875,
+        782.4658813476562
+      ],
+      "size": [
+        551.0270385742188,
+        254.4538116455078
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 24
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 20,
+      "type": "JC_GGUF_adv",
+      "pos": [
+        239.39669799804688,
+        712.919677734375
+      ],
+      "size": [
+        298.3599853515625,
+        324
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 21
+        },
+        {
+          "name": "extra_options",
+          "shape": 7,
+          "type": "JOYCAPTION_EXTRA_OPTIONS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROMPT",
+          "type": "STRING",
+          "links": [
+            23
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "JC_GGUF_adv"
+      },
+      "widgets_values": [
+        "JoyCaption Beta One (IQ4_XS)",
+        "GPU",
+        "Stable Diffusion Prompt",
+        "any",
+        512,
+        0.6,
+        0.9,
+        0,
+        "",
+        "Keep in Memory"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "AILab_ImagePreview",
+      "pos": [
+        -348.1651306152344,
+        298.06317138671875
+      ],
+      "size": [
+        551.80078125,
+        738.8565063476562
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20,
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-rmbg",
+        "ver": "c36a6a819fef2208316693c29c055b5c558c89e8",
+        "Node name for S&R": "AILab_ImagePreview"
+      },
+      "widgets_values": [],
+      "color": "#2e3e57",
+      "bgcolor": "#4b5b73"
+    },
+    {
+      "id": 9,
+      "type": "PreviewAny",
+      "pos": [
+        557.0983276367188,
+        298.06317138671875
+      ],
+      "size": [
+        546.5134887695312,
+        241.1837158203125
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 22
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 21,
+      "type": "PreviewAny",
+      "pos": [
+        563.1483154296875,
+        629.5003051757812
+      ],
+      "size": [
+        385.2570495605469,
+        88
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 23
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.49",
+        "Node name for S&R": "PreviewAny"
+      },
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [
+      20,
+      17,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      17,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      19,
+      0,
+      9,
+      0,
+      "*"
+    ],
+    [
+      23,
+      20,
+      0,
+      21,
+      0,
+      "*"
+    ],
+    [
+      24,
+      20,
+      1,
+      11,
+      0,
+      "*"
+    ],
+    [
+      26,
+      16,
+      0,
+      17,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8264462809917356,
+      "offset": [
+        751.8155895059733,
+        96.63700520386863
+      ]
+    },
+    "frontendVersion": "1.24.4"
+  },
+  "version": 0.4
+}
