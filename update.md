@@ -1,6 +1,7 @@
 # ComfyUI-JoyCaption Update Log
 
 ## V2.0.0 (2025-08-22)
+ ![Joycaption GGUF](example_workflows/JoyCaption-GGUF.png)
 ### 🚀 Major Features
 - **GGUF Model Support**: Added comprehensive support for quantized GGUF models for better performance and lower memory usage
   - New `JoyCaption GGUF` node for basic GGUF model usage
@@ -129,4 +130,5 @@
   - Optional image copying with captions
   - Automatic file overwrite protection
   - UTF-8 encoding support
+
   - Batch processing capability
