@@ -250,5 +250,67 @@
             "name": "fancyfeast/llama-joycaption-alpha-two-hf-llava",
             "description": "JoyCaption Alpha Two - Previous version, still available for compatibility"
         }
+    },
+    "gguf_models": {
+        "JoyCaption Beta One (IQ4_XS)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.IQ4_XS.gguf",
+            "description": "4.48 GB - IQ4 Extra Small model"
+        },
+        "JoyCaption Beta One (Q2_K)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q2_K.gguf",
+            "description": "3.18 GB - 2-bit K-quants model"
+        },
+        "JoyCaption Beta One (Q3_K_L)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q3_K_L.gguf",
+            "description": "4.32 GB - 3-bit K-quants Large model"
+        },
+        "JoyCaption Beta One (Q3_K_M)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q3_K_M.gguf",
+            "description": "4.02 GB - 3-bit K-quants Medium model"
+        },
+        "JoyCaption Beta One (Q3_K_S)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q3_K_S.gguf",
+            "description": "3.66 GB - 3-bit K-quants Small model"
+        },
+        "JoyCaption Beta One (Q4_K_M)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q4_K_M.gguf",
+            "description": "4.92 GB - 4-bit K-quants Medium model"
+        },
+        "JoyCaption Beta One (Q4_K_S)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q4_K_S.gguf",
+            "description": "4.69 GB - 4-bit K-quants Small model"
+        },
+        "JoyCaption Beta One (Q5_K_M)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q5_K_M.gguf",
+            "description": "5.73 GB - 5-bit K-quants Medium model"
+        },
+        "JoyCaption Beta One (Q5_K_S)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q5_K_S.gguf",
+            "description": "5.6 GB - 5-bit K-quants Small model"
+        },
+        "JoyCaption Beta One (Q6_K)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q6_K.gguf",
+            "description": "6.6 GB - 6-bit K-quants model"
+        },
+        "JoyCaption Beta One (Q8_0)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.Q8_0.gguf",
+            "description": "8.54 GB - 8-bit base model"
+        },
+        "JoyCaption Beta One (F16)": {
+            "name": "mradermacher/llama-joycaption-beta-one-hf-llava-GGUF/llama-joycaption-beta-one-hf-llava.f16.gguf",
+            "description": "16.1 GB - Full precision F16 model"
+        },
+        "joycaption-beta-one-gguf-q4_k": {
+            "name": "concedo/llama-joycaption-beta-one-hf-llava-mmproj-gguf/Llama-Joycaption-Beta-One-Hf-Llava-Q4_K.gguf",
+            "description": "JoyCaption Beta One GGUF - Q4_K quantized model (4.92 GB)"
+        },
+        "joycaption-beta-one-gguf-q8_0": {
+            "name": "concedo/llama-joycaption-beta-one-hf-llava-mmproj-gguf/Llama-Joycaption-Beta-One-Hf-Llava-Q8_0.gguf",
+            "description": "JoyCaption Beta One GGUF - Q8_0 quantized model (8.54 GB)"
+        },
+        "joycaption-beta-one-gguf-f16": {
+            "name": "concedo/llama-joycaption-beta-one-hf-llava-mmproj-gguf/Llama-Joycaption-Beta-One-Hf-Llava-F16.gguf",
+            "description": "JoyCaption Beta One GGUF - F16 full precision model (16.1 GB)"
+        }
     }
 } 
