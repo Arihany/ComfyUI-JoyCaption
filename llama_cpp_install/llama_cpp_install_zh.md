@@ -23,7 +23,7 @@
 ## **自动安装脚本（推荐）**
 
 * 确保安装脚本保存在这里：  
-  `.\ComfyUI\custom_nodes\ComfyUI-JoyCaption\install_llama_official.py`
+  `.\ComfyUI\custom_nodes\ComfyUI-JoyCaption\llama_cpp_install.py`
 
 * 在命令提示符中（在步骤 1 中打开的），运行脚本：
 
@@ -78,3 +78,4 @@
 
 
 --- 
+
