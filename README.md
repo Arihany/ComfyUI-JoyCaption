@@ -27,8 +27,6 @@ Joy Caption is a ComfyUI custom node powered by the LLaVA model for efficient, s
 
 - **2025/06/07**: Update ComfyUI-JoyCaption to **v1.1.1** ( [update.md](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/update.md#v111-20250607) )
 
-![v1 1 1](https://github.com/user-attachments/assets/bcb6cadd-1294-4fd0-a5b4-fe8cd3784801)
-
 - **2025/06/05**: Update ComfyUI-JoyCaption to **v1.1.0** ( [update.md](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/update.md#v110-20250605) )
 - Add Caption tools
 
@@ -327,3 +325,4 @@ The models are trained on diverse datasets, ensuring:
 
 
 This repository's code is released under the GPL-3.0 License.
+
