@@ -12,13 +12,6 @@ ComfyUI 自定义节点，基于 LLaVA VLM 提供高级图像描述功能，支�
   - **跨平台支持**: Windows、macOS和Linux安装指南
   - **性能改进**: 优化模型加载和内存管理
 
-- **2025/06/23**: 更新 ComfyUI-JoyCaption 至 **v1.3.0** 版本 ( [update.md](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/update.md#v130-20250623) )
-  - 添加 GGUF 模型支持，提供更好的性能和兼容性
-  - 修复关键参数处理问题（top_k、图像格式）
-  - 改进控制台输出（不再有 base64 垃圾信息）
-  - 增强错误处理和稳定性
-  - 添加 JoyCaption GGUF 和 JoyCaption GGUF (高级) 节点
-
 - **2025/06/15**: 更新 ComfyUI-JoyCaption 至 **v1.2.0** 版本 ( [update.md](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/update.md#v120-20250615) )
   - 增强 CUDA 性能优化
   - 改进内存管理策略
@@ -314,5 +307,6 @@ pip install -r requirements_gguf.txt
 ## 许可证
 
 本仓库代码基于 GPL-3.0 许可证发布。
+
 
 模型采用 GPL-3.0 许可证发布。请参阅 [LICENSE](LICENSE) 文件了解详情。 
