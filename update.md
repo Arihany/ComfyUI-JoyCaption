@@ -10,9 +10,9 @@ https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/example_workflows/JoyCap
   - Support for multiple quantization levels (Q2_K, Q3_K_S, Q3_K_M, Q3_K_L, IQ4_XS, Q4_K_S, Q4_K_M, Q5_K_S, Q5_K_M, Q6_K, Q8_0, F16)
   - Automatic model and vision projection model downloading
   - **llama_cpp_install folder**: Added comprehensive installation guides and scripts for llama-cpp-python
-    - `llama_cpp_install.py` - Automated installation script with CUDA support detection
-    - `llama_cpp_install.md` - English installation guide for ComfyUI portable
-    - `llama_cpp_install_zh.md` - Chinese installation guide for ComfyUI portable
+    - `llama_cpp_install.py` - [Automated installation script](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/llama_cpp_install/llama_cpp_install.py) with CUDA support detection
+    - `llama_cpp_install.md` - [English installation guide](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/llama_cpp_install/llama_cpp_install.md) for ComfyUI portable
+    - `llama_cpp_install_zh.md` - [Chinese installation guide](https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/llama_cpp_install/llama_cpp_install_zh.md) for ComfyUI portable
     - Supports Windows, macOS, and Linux platforms
     - Automatic CUDA/GPU detection and compilation
     - Pre-compiled wheel support for faster installation
@@ -133,4 +133,5 @@ https://github.com/1038lab/ComfyUI-JoyCaption/blob/main/example_workflows/JoyCap
   - UTF-8 encoding support
 
   - Batch processing capability
+
 
