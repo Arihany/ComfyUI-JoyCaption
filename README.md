@@ -14,7 +14,7 @@ Joy Caption is a ComfyUI custom node powered by the LLaVA model for efficient, s
   - Added JoyCaption GGUF and JoyCaption GGUF (Advanced) nodes
   - **Enhanced GGUF Support**: Comprehensive support for 12 quantization levels (Q2_K to F16)
   - **llama_cpp_install folder**: Complete installation guides and automated scripts for llama-cpp-python
-  - **Simplified Installation**: One-click llama-cpp-python installation with automatic CUDA support
+  - **Simplified Installation**: [One-click llama-cpp-python installation](https://github.com/1038lab/ComfyUI-JoyCaption/tree/main/llama_cpp_install) with automatic CUDA support
   - **Cross-Platform Support**: Windows, macOS, and Linux installation guides
   - **Performance Improvements**: Optimized model loading and memory management
 
@@ -325,4 +325,5 @@ The models are trained on diverse datasets, ensuring:
 
 
 This repository's code is released under the GPL-3.0 License.
+
 
