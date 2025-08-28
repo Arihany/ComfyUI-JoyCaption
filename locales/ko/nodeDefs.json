@@ -1,80 +1,30 @@
 {
-  "ImageBatchPath": {
-    "display_name": "이미지 배치 경로 🖼️",
-    "inputs": {
-      "image_dir": {
-        "name": "이미지 디렉토리"
-      },
-      "batch_size": {
-        "name": "배치 크기"
-      },
-      "start_from": {
-        "name": "시작 위치"
-      },
-      "sort_method": {
-        "name": "정렬 방법"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "이미지 경로"
-      },
-      "1": {
-        "name": "이미지"
-      }
-    }
-  },
-  "CaptionSaver": {
-    "display_name": "캡션 저장 📝",
-    "inputs": {
-      "string": {
-        "name": "문자열"
-      },
-      "image_path": {
-        "name": "이미지 경로"
-      },
-      "image": {
-        "name": "이미지"
-      },
-      "custom_output_path": {
-        "name": "사용자 정의 출력 경로"
-      },
-      "custom_file_name": {
-        "name": "사용자 정의 파일명"
-      },
-      "overwrite": {
-        "name": "덮어쓰기"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "문자열"
-      }
-    }
-  },
-  "JC": {
-    "display_name": "JoyCaption",
+    "MiniCPM_V": {
+    "display_name": "MiniCPM-V",
     "inputs": {
       "image": {
         "name": "이미지"
+      },
+      "video": {
+        "name": "비디오"
       },
       "model": {
         "name": "모델"
       },
-      "quantization": {
-        "name": "양자화"
+      "preset_prompt": {
+        "name": "프리셋 프롬프트"
       },
-      "prompt_style": {
-        "name": "프롬프트 스타일"
+      "custom_prompt": {
+        "name": "사용자 지정 프롬프트"
       },
-      "caption_length": {
-        "name": "캡션 길이"
+      "device": {
+        "name": "디바이스"
       },
       "memory_management": {
         "name": "메모리 관리"
       },
-      "extra_options": {
-        "name": "추가 옵션"
+      "seed": {
+        "name": "시드"
       }
     },
     "outputs": {
@@ -83,26 +33,29 @@
       }
     }
   },
-  "JC_adv": {
-    "display_name": "JoyCaption (고급)",
+  "MiniCPM_V_adv": {
+    "display_name": "MiniCPM-V (고급)",
     "inputs": {
       "image": {
         "name": "이미지"
       },
+      "video": {
+        "name": "비디오"
+      },
       "model": {
         "name": "모델"
       },
-      "quantization": {
-        "name": "양자화"
+      "preset_prompt": {
+        "name": "프리셋 프롬프트"
       },
-      "prompt_style": {
-        "name": "프롬프트 스타일"
+      "custom_prompt": {
+        "name": "사용자 지정 프롬프트"
       },
-      "caption_length": {
-        "name": "캡션 길이"
+      "system_prompt": {
+        "name": "시스템 프롬프트"
       },
       "max_new_tokens": {
-        "name": "최대 새 토큰 수"
+        "name": "최대 신규 토큰"
       },
       "temperature": {
         "name": "온도"
@@ -113,14 +66,23 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "사용자 정의 프롬프트"
+      "repetition_penalty": {
+        "name": "반복 패널티"
+      },
+      "video_max_num_frames": {
+        "name": "비디오 최대 프레임 수"
+      },
+      "video_max_slice_nums": {
+        "name": "비디오 최대 슬라이스 수"
+      },
+      "device": {
+        "name": "디바이스"
       },
       "memory_management": {
         "name": "메모리 관리"
       },
-      "extra_options": {
-        "name": "추가 옵션"
+      "seed": {
+        "name": "시드"
       }
     },
     "outputs": {
@@ -132,38 +94,32 @@
       }
     }
   },
-  "JC_ExtraOptions": {
-    "display_name": "JoyCaption 추가 옵션",
-    "inputs": {},
-    "outputs": {
-      "0": {
-        "name": "추가 옵션"
-      }
-    }
-  },
-  "JC_GGUF": {
-    "display_name": "JoyCaption GGUF",
+  "MiniCPM_V_GGUF": {
+    "display_name": "MiniCPM-V GGUF",
     "inputs": {
       "image": {
         "name": "이미지"
       },
+      "video": {
+        "name": "비디오"
+      },
       "model": {
         "name": "모델"
       },
-      "processing_mode": {
-        "name": "처리 모드"
+      "preset_prompt": {
+        "name": "프리셋 프롬프트"
       },
-      "prompt_style": {
-        "name": "프롬프트 스타일"
+      "custom_prompt": {
+        "name": "사용자 지정 프롬프트"
       },
-      "caption_length": {
-        "name": "캡션 길이"
+      "device": {
+        "name": "디바이스"
       },
       "memory_management": {
         "name": "메모리 관리"
       },
-      "extra_options": {
-        "name": "추가 옵션"
+      "seed": {
+        "name": "시드"
       }
     },
     "outputs": {
@@ -172,26 +128,29 @@
       }
     }
   },
-  "JC_GGUF_adv": {
-    "display_name": "JoyCaption GGUF (고급)",
+  "MiniCPM_V_GGUF_adv": {
+    "display_name": "MiniCPM-V GGUF (고급)",
     "inputs": {
       "image": {
         "name": "이미지"
       },
+      "video": {
+        "name": "비디오"
+      },
       "model": {
         "name": "모델"
       },
-      "processing_mode": {
-        "name": "처리 모드"
+      "preset_prompt": {
+        "name": "프리셋 프롬프트"
       },
-      "prompt_style": {
-        "name": "프롬프트 스타일"
+      "custom_prompt": {
+        "name": "사용자 지정 프롬프트"
       },
-      "caption_length": {
-        "name": "캡션 길이"
+      "system_prompt": {
+        "name": "시스템 프롬프트"
       },
       "max_new_tokens": {
-        "name": "최대 새 토큰 수"
+        "name": "최대 신규 토큰"
       },
       "temperature": {
         "name": "온도"
@@ -202,14 +161,23 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "사용자 정의 프롬프트"
+      "repetition_penalty": {
+        "name": "반복 패널티"
+      },
+      "video_max_num_frames": {
+        "name": "비디오 최대 프레임 수"
+      },
+      "video_max_slice_nums": {
+        "name": "비디오 최대 슬라이스 수"
+      },
+      "device": {
+        "name": "디바이스"
       },
       "memory_management": {
         "name": "메모리 관리"
       },
-      "extra_options": {
-        "name": "추가 옵션"
+      "seed": {
+        "name": "시드"
       }
     },
     "outputs": {

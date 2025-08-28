@@ -1,108 +1,61 @@
 {
-  "ImageBatchPath": {
-    "display_name": "Chemin de lot d'images 🖼️",
-    "inputs": {
-      "image_dir": {
-        "name": "répertoire d'images"
-      },
-      "batch_size": {
-        "name": "taille du lot"
-      },
-      "start_from": {
-        "name": "position de départ"
-      },
-      "sort_method": {
-        "name": "méthode de tri"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "chemin d'image"
-      },
-      "1": {
-        "name": "image"
-      }
-    }
-  },
-  "CaptionSaver": {
-    "display_name": "Sauvegarde de légende 📝",
-    "inputs": {
-      "string": {
-        "name": "chaîne"
-      },
-      "image_path": {
-        "name": "chemin d'image"
-      },
-      "image": {
-        "name": "image"
-      },
-      "custom_output_path": {
-        "name": "chemin de sortie personnalisé"
-      },
-      "custom_file_name": {
-        "name": "nom de fichier personnalisé"
-      },
-      "overwrite": {
-        "name": "écraser"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "chaîne"
-      }
-    }
-  },
-  "JC": {
-    "display_name": "JoyCaption",
+    "MiniCPM_V": {
+    "display_name": "MiniCPM-V",
     "inputs": {
       "image": {
         "name": "image"
+      },
+      "video": {
+        "name": "vidéo"
       },
       "model": {
         "name": "modèle"
       },
-      "quantization": {
-        "name": "quantification"
+      "preset_prompt": {
+        "name": "invite_prédéfinie"
       },
-      "prompt_style": {
-        "name": "style de prompt"
+      "custom_prompt": {
+        "name": "invite_personnalisée"
       },
-      "caption_length": {
-        "name": "longueur de légende"
+      "device": {
+        "name": "appareil"
       },
       "memory_management": {
-        "name": "gestion de la mémoire"
+        "name": "gestion_mémoire"
       },
-      "extra_options": {
-        "name": "options supplémentaires"
+      "seed": {
+        "name": "graine"
       }
     },
     "outputs": {
       "0": {
-        "name": "chaîne"
+        "name": "CHAÎNE"
       }
     }
   },
-  "JC_adv": {
-    "display_name": "JoyCaption (avancé)",
+  "MiniCPM_V_adv": {
+    "display_name": "MiniCPM-V (Avancé)",
     "inputs": {
       "image": {
         "name": "image"
       },
+      "video": {
+        "name": "vidéo"
+      },
       "model": {
         "name": "modèle"
       },
-      "quantization": {
-        "name": "quantification"
+      "preset_prompt": {
+        "name": "invite_prédéfinie"
       },
-      "prompt_style": {
-        "name": "style de prompt"
+      "custom_prompt": {
+        "name": "invite_personnalisée"
       },
-      "caption_length": {
-        "name": "longueur de légende"
+      "system_prompt": {
+        "name": "invite_système"
       },
       "max_new_tokens": {
-        "name": "nombre maximum de nouveaux tokens"
+        "name": "max_nouveaux_tokens"
       },
       "temperature": {
         "name": "température"
@@ -113,85 +66,91 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "prompt personnalisé"
+      "repetition_penalty": {
+        "name": "pénalité_répétition"
+      },
+      "video_max_num_frames": {
+        "name": "vidéo_max_nb_images"
+      },
+      "video_max_slice_nums": {
+        "name": "vidéo_max_nb_tranches"
+      },
+      "device": {
+        "name": "appareil"
       },
       "memory_management": {
-        "name": "gestion de la mémoire"
+        "name": "gestion_mémoire"
       },
-      "extra_options": {
-        "name": "options supplémentaires"
+      "seed": {
+        "name": "graine"
       }
     },
     "outputs": {
       "0": {
-        "name": "prompt"
+        "name": "INVITE"
       },
       "1": {
-        "name": "chaîne"
+        "name": "CHAÎNE"
       }
     }
   },
-  "JC_ExtraOptions": {
-    "display_name": "Options supplémentaires JoyCaption",
-    "inputs": {},
-    "outputs": {
-      "0": {
-        "name": "options supplémentaires"
-      }
-    }
-  },
-  "JC_GGUF": {
-    "display_name": "JoyCaption GGUF",
+  "MiniCPM_V_GGUF": {
+    "display_name": "MiniCPM-V GGUF",
     "inputs": {
       "image": {
         "name": "image"
       },
+      "video": {
+        "name": "vidéo"
+      },
       "model": {
         "name": "modèle"
       },
-      "processing_mode": {
-        "name": "mode de traitement"
+      "preset_prompt": {
+        "name": "invite_prédéfinie"
       },
-      "prompt_style": {
-        "name": "style de prompt"
+      "custom_prompt": {
+        "name": "invite_personnalisée"
       },
-      "caption_length": {
-        "name": "longueur de légende"
+      "device": {
+        "name": "appareil"
       },
       "memory_management": {
-        "name": "gestion de la mémoire"
+        "name": "gestion_mémoire"
       },
-      "extra_options": {
-        "name": "options supplémentaires"
+      "seed": {
+        "name": "graine"
       }
     },
     "outputs": {
       "0": {
-        "name": "chaîne"
+        "name": "CHAÎNE"
       }
     }
   },
-  "JC_GGUF_adv": {
-    "display_name": "JoyCaption GGUF (avancé)",
+  "MiniCPM_V_GGUF_adv": {
+    "display_name": "MiniCPM-V GGUF (Avancé)",
     "inputs": {
       "image": {
         "name": "image"
       },
+      "video": {
+        "name": "vidéo"
+      },
       "model": {
         "name": "modèle"
       },
-      "processing_mode": {
-        "name": "mode de traitement"
+      "preset_prompt": {
+        "name": "invite_prédéfinie"
       },
-      "prompt_style": {
-        "name": "style de prompt"
+      "custom_prompt": {
+        "name": "invite_personnalisée"
       },
-      "caption_length": {
-        "name": "longueur de légende"
+      "system_prompt": {
+        "name": "invite_système"
       },
       "max_new_tokens": {
-        "name": "nombre maximum de nouveaux tokens"
+        "name": "max_nouveaux_tokens"
       },
       "temperature": {
         "name": "température"
@@ -202,22 +161,31 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "prompt personnalisé"
+      "repetition_penalty": {
+        "name": "pénalité_répétition"
+      },
+      "video_max_num_frames": {
+        "name": "vidéo_max_nb_images"
+      },
+      "video_max_slice_nums": {
+        "name": "vidéo_max_nb_tranches"
+      },
+      "device": {
+        "name": "appareil"
       },
       "memory_management": {
-        "name": "gestion de la mémoire"
+        "name": "gestion_mémoire"
       },
-      "extra_options": {
-        "name": "options supplémentaires"
+      "seed": {
+        "name": "graine"
       }
     },
     "outputs": {
       "0": {
-        "name": "prompt"
+        "name": "INVITE"
       },
       "1": {
-        "name": "chaîne"
+        "name": "CHAÎNE"
       }
     }
   }

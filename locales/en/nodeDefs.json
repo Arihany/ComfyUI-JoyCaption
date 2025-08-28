@@ -1,80 +1,30 @@
 {
-  "ImageBatchPath": {
-    "display_name": "Image Batch Path 🖼️",
-    "inputs": {
-      "image_dir": {
-        "name": "image_dir"
-      },
-      "batch_size": {
-        "name": "batch_size"
-      },
-      "start_from": {
-        "name": "start_from"
-      },
-      "sort_method": {
-        "name": "sort_method"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "image_path"
-      },
-      "1": {
-        "name": "image"
-      }
-    }
-  },
-  "CaptionSaver": {
-    "display_name": "Caption Saver 📝",
-    "inputs": {
-      "string": {
-        "name": "string"
-      },
-      "image_path": {
-        "name": "image_path"
-      },
-      "image": {
-        "name": "image"
-      },
-      "custom_output_path": {
-        "name": "custom_output_path"
-      },
-      "custom_file_name": {
-        "name": "custom_file_name"
-      },
-      "overwrite": {
-        "name": "overwrite"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "STRING"
-      }
-    }
-  },
-  "JC": {
-    "display_name": "JoyCaption",
+    "MiniCPM_V": {
+    "display_name": "MiniCPM-V",
     "inputs": {
       "image": {
         "name": "image"
+      },
+      "video": {
+        "name": "video"
       },
       "model": {
         "name": "model"
       },
-      "quantization": {
-        "name": "quantization"
+      "preset_prompt": {
+        "name": "preset_prompt"
       },
-      "prompt_style": {
-        "name": "prompt_style"
+      "custom_prompt": {
+        "name": "custom_prompt"
       },
-      "caption_length": {
-        "name": "caption_length"
+      "device": {
+        "name": "device"
       },
       "memory_management": {
         "name": "memory_management"
       },
-      "extra_options": {
-        "name": "extra_options"
+      "seed": {
+        "name": "seed"
       }
     },
     "outputs": {
@@ -83,23 +33,26 @@
       }
     }
   },
-  "JC_adv": {
-    "display_name": "JoyCaption (Advanced)",
+  "MiniCPM_V_adv": {
+    "display_name": "MiniCPM-V (Advanced)",
     "inputs": {
       "image": {
         "name": "image"
       },
+      "video": {
+        "name": "video"
+      },
       "model": {
         "name": "model"
       },
-      "quantization": {
-        "name": "quantization"
+      "preset_prompt": {
+        "name": "preset_prompt"
       },
-      "prompt_style": {
-        "name": "prompt_style"
+      "custom_prompt": {
+        "name": "custom_prompt"
       },
-      "caption_length": {
-        "name": "caption_length"
+      "system_prompt": {
+        "name": "system_prompt"
       },
       "max_new_tokens": {
         "name": "max_new_tokens"
@@ -113,14 +66,23 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "custom_prompt"
+      "repetition_penalty": {
+        "name": "repetition_penalty"
+      },
+      "video_max_num_frames": {
+        "name": "video_max_num_frames"
+      },
+      "video_max_slice_nums": {
+        "name": "video_max_slice_nums"
+      },
+      "device": {
+        "name": "device"
       },
       "memory_management": {
         "name": "memory_management"
       },
-      "extra_options": {
-        "name": "extra_options"
+      "seed": {
+        "name": "seed"
       }
     },
     "outputs": {
@@ -132,38 +94,32 @@
       }
     }
   },
-  "JC_ExtraOptions": {
-    "display_name": "JoyCaption Extra Options",
-    "inputs": {},
-    "outputs": {
-      "0": {
-        "name": "extra_options"
-      }
-    }
-  },
-  "JC_GGUF": {
-    "display_name": "JoyCaption GGUF",
+  "MiniCPM_V_GGUF": {
+    "display_name": "MiniCPM-V GGUF",
     "inputs": {
       "image": {
         "name": "image"
       },
+      "video": {
+        "name": "video"
+      },
       "model": {
         "name": "model"
       },
-      "processing_mode": {
-        "name": "processing_mode"
+      "preset_prompt": {
+        "name": "preset_prompt"
       },
-      "prompt_style": {
-        "name": "prompt_style"
+      "custom_prompt": {
+        "name": "custom_prompt"
       },
-      "caption_length": {
-        "name": "caption_length"
+      "device": {
+        "name": "device"
       },
       "memory_management": {
         "name": "memory_management"
       },
-      "extra_options": {
-        "name": "extra_options"
+      "seed": {
+        "name": "seed"
       }
     },
     "outputs": {
@@ -172,23 +128,26 @@
       }
     }
   },
-  "JC_GGUF_adv": {
-    "display_name": "JoyCaption GGUF (Advanced)",
+  "MiniCPM_V_GGUF_adv": {
+    "display_name": "MiniCPM-V GGUF (Advanced)",
     "inputs": {
       "image": {
         "name": "image"
       },
+      "video": {
+        "name": "video"
+      },
       "model": {
         "name": "model"
       },
-      "processing_mode": {
-        "name": "processing_mode"
+      "preset_prompt": {
+        "name": "preset_prompt"
       },
-      "prompt_style": {
-        "name": "prompt_style"
+      "custom_prompt": {
+        "name": "custom_prompt"
       },
-      "caption_length": {
-        "name": "caption_length"
+      "system_prompt": {
+        "name": "system_prompt"
       },
       "max_new_tokens": {
         "name": "max_new_tokens"
@@ -202,14 +161,23 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "custom_prompt"
+      "repetition_penalty": {
+        "name": "repetition_penalty"
+      },
+      "video_max_num_frames": {
+        "name": "video_max_num_frames"
+      },
+      "video_max_slice_nums": {
+        "name": "video_max_slice_nums"
+      },
+      "device": {
+        "name": "device"
       },
       "memory_management": {
         "name": "memory_management"
       },
-      "extra_options": {
-        "name": "extra_options"
+      "seed": {
+        "name": "seed"
       }
     },
     "outputs": {

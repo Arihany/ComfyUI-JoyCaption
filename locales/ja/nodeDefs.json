@@ -1,80 +1,30 @@
 {
-  "ImageBatchPath": {
-    "display_name": "画像バッチパス🖼️",
-    "inputs": {
-      "image_dir": {
-        "name": "画像ディレクトリ"
-      },
-      "batch_size": {
-        "name": "バッチサイズ"
-      },
-      "start_from": {
-        "name": "開始位置"
-      },
-      "sort_method": {
-        "name": "ソート方法"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "画像パス"
-      },
-      "1": {
-        "name": "画像"
-      }
-    }
-  },
-  "CaptionSaver": {
-    "display_name": "キャプション保存📝",
-    "inputs": {
-      "string": {
-        "name": "文字列"
-      },
-      "image_path": {
-        "name": "画像パス"
-      },
-      "image": {
-        "name": "画像"
-      },
-      "custom_output_path": {
-        "name": "カスタム出力パス"
-      },
-      "custom_file_name": {
-        "name": "カスタムファイル名"
-      },
-      "overwrite": {
-        "name": "上書き"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "文字列"
-      }
-    }
-  },
-  "JC": {
-    "display_name": "JoyCaption",
+    "MiniCPM_V": {
+    "display_name": "MiniCPM-V",
     "inputs": {
       "image": {
         "name": "画像"
+      },
+      "video": {
+        "name": "ビデオ"
       },
       "model": {
         "name": "モデル"
       },
-      "quantization": {
-        "name": "量子化"
+      "preset_prompt": {
+        "name": "プリセットプロンプト"
       },
-      "prompt_style": {
-        "name": "プロンプトスタイル"
+      "custom_prompt": {
+        "name": "カスタムプロンプト"
       },
-      "caption_length": {
-        "name": "キャプション長"
+      "device": {
+        "name": "デバイス"
       },
       "memory_management": {
         "name": "メモリ管理"
       },
-      "extra_options": {
-        "name": "追加オプション"
+      "seed": {
+        "name": "シード"
       }
     },
     "outputs": {
@@ -83,44 +33,56 @@
       }
     }
   },
-  "JC_adv": {
-    "display_name": "JoyCaption（高度）",
+  "MiniCPM_V_adv": {
+    "display_name": "MiniCPM-V（上級）",
     "inputs": {
       "image": {
         "name": "画像"
       },
+      "video": {
+        "name": "ビデオ"
+      },
       "model": {
         "name": "モデル"
       },
-      "quantization": {
-        "name": "量子化"
+      "preset_prompt": {
+        "name": "プリセットプロンプト"
       },
-      "prompt_style": {
-        "name": "プロンプトスタイル"
+      "custom_prompt": {
+        "name": "カスタムプロンプト"
       },
-      "caption_length": {
-        "name": "キャプション長"
+      "system_prompt": {
+        "name": "システムプロンプト"
       },
       "max_new_tokens": {
-        "name": "最大新トークン数"
+        "name": "最大新規トークン数"
       },
       "temperature": {
         "name": "温度"
       },
       "top_p": {
-        "name": "top_p"
+        "name": "トップP"
       },
       "top_k": {
-        "name": "top_k"
+        "name": "トップK"
       },
-      "custom_prompt": {
-        "name": "カスタムプロンプト"
+      "repetition_penalty": {
+        "name": "繰り返しペナルティ"
+      },
+      "video_max_num_frames": {
+        "name": "ビデオ最大フレーム数"
+      },
+      "video_max_slice_nums": {
+        "name": "ビデオ最大スライス数"
+      },
+      "device": {
+        "name": "デバイス"
       },
       "memory_management": {
         "name": "メモリ管理"
       },
-      "extra_options": {
-        "name": "追加オプション"
+      "seed": {
+        "name": "シード"
       }
     },
     "outputs": {
@@ -132,38 +94,32 @@
       }
     }
   },
-  "JC_ExtraOptions": {
-    "display_name": "JoyCaption追加オプション",
-    "inputs": {},
-    "outputs": {
-      "0": {
-        "name": "追加オプション"
-      }
-    }
-  },
-  "JC_GGUF": {
-    "display_name": "JoyCaption GGUF",
+  "MiniCPM_V_GGUF": {
+    "display_name": "MiniCPM-V GGUF",
     "inputs": {
       "image": {
         "name": "画像"
       },
+      "video": {
+        "name": "ビデオ"
+      },
       "model": {
         "name": "モデル"
       },
-      "processing_mode": {
-        "name": "処理モード"
+      "preset_prompt": {
+        "name": "プリセットプロンプト"
       },
-      "prompt_style": {
-        "name": "プロンプトスタイル"
+      "custom_prompt": {
+        "name": "カスタムプロンプト"
       },
-      "caption_length": {
-        "name": "キャプション長"
+      "device": {
+        "name": "デバイス"
       },
       "memory_management": {
         "name": "メモリ管理"
       },
-      "extra_options": {
-        "name": "追加オプション"
+      "seed": {
+        "name": "シード"
       }
     },
     "outputs": {
@@ -172,44 +128,56 @@
       }
     }
   },
-  "JC_GGUF_adv": {
-    "display_name": "JoyCaption GGUF（高度）",
+  "MiniCPM_V_GGUF_adv": {
+    "display_name": "MiniCPM-V GGUF（上級）",
     "inputs": {
       "image": {
         "name": "画像"
       },
+      "video": {
+        "name": "ビデオ"
+      },
       "model": {
         "name": "モデル"
       },
-      "processing_mode": {
-        "name": "処理モード"
+      "preset_prompt": {
+        "name": "プリセットプロンプト"
       },
-      "prompt_style": {
-        "name": "プロンプトスタイル"
+      "custom_prompt": {
+        "name": "カスタムプロンプト"
       },
-      "caption_length": {
-        "name": "キャプション長"
+      "system_prompt": {
+        "name": "システムプロンプト"
       },
       "max_new_tokens": {
-        "name": "最大新トークン数"
+        "name": "最大新規トークン数"
       },
       "temperature": {
         "name": "温度"
       },
       "top_p": {
-        "name": "top_p"
+        "name": "トップP"
       },
       "top_k": {
-        "name": "top_k"
+        "name": "トップK"
       },
-      "custom_prompt": {
-        "name": "カスタムプロンプト"
+      "repetition_penalty": {
+        "name": "繰り返しペナルティ"
+      },
+      "video_max_num_frames": {
+        "name": "ビデオ最大フレーム数"
+      },
+      "video_max_slice_nums": {
+        "name": "ビデオ最大スライス数"
+      },
+      "device": {
+        "name": "デバイス"
       },
       "memory_management": {
         "name": "メモリ管理"
       },
-      "extra_options": {
-        "name": "追加オプション"
+      "seed": {
+        "name": "シード"
       }
     },
     "outputs": {

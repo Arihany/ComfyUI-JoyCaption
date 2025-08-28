@@ -1,80 +1,30 @@
 {
-  "ImageBatchPath": {
-    "display_name": "图像批处理路径🖼️",
-    "inputs": {
-      "image_dir": {
-        "name": "图像目录"
-      },
-      "batch_size": {
-        "name": "批处理大小"
-      },
-      "start_from": {
-        "name": "起始位置"
-      },
-      "sort_method": {
-        "name": "排序方式"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "图像路径"
-      },
-      "1": {
-        "name": "图像"
-      }
-    }
-  },
-  "CaptionSaver": {
-    "display_name": "字幕保存器📝",
-    "inputs": {
-      "string": {
-        "name": "字符串"
-      },
-      "image_path": {
-        "name": "图像路径"
-      },
-      "image": {
-        "name": "图像"
-      },
-      "custom_output_path": {
-        "name": "自定义输出路径"
-      },
-      "custom_file_name": {
-        "name": "自定义文件名"
-      },
-      "overwrite": {
-        "name": "覆盖"
-      }
-    },
-    "outputs": {
-      "0": {
-        "name": "字符串"
-      }
-    }
-  },
-  "JC": {
-    "display_name": "JoyCaption",
+    "MiniCPM_V": {
+    "display_name": "MiniCPM-V",
     "inputs": {
       "image": {
-        "name": "图像"
+        "name": "图片"
+      },
+      "video": {
+        "name": "视频"
       },
       "model": {
         "name": "模型"
       },
-      "quantization": {
-        "name": "量化"
+      "preset_prompt": {
+        "name": "预设提示词"
       },
-      "prompt_style": {
-        "name": "提示词风格"
+      "custom_prompt": {
+        "name": "自定义提示词"
       },
-      "caption_length": {
-        "name": "字幕长度"
+      "device": {
+        "name": "设备"
       },
       "memory_management": {
         "name": "内存管理"
       },
-      "extra_options": {
-        "name": "额外选项"
+      "seed": {
+        "name": "随机种子"
       }
     },
     "outputs": {
@@ -83,26 +33,29 @@
       }
     }
   },
-  "JC_adv": {
-    "display_name": "JoyCaption（高级）",
+  "MiniCPM_V_adv": {
+    "display_name": "MiniCPM-V（高级）",
     "inputs": {
       "image": {
-        "name": "图像"
+        "name": "图片"
+      },
+      "video": {
+        "name": "视频"
       },
       "model": {
         "name": "模型"
       },
-      "quantization": {
-        "name": "量化"
+      "preset_prompt": {
+        "name": "预设提示词"
       },
-      "prompt_style": {
-        "name": "提示词风格"
+      "custom_prompt": {
+        "name": "自定义提示词"
       },
-      "caption_length": {
-        "name": "字幕长度"
+      "system_prompt": {
+        "name": "系统提示词"
       },
       "max_new_tokens": {
-        "name": "最大新词元数"
+        "name": "最大新生成Token数"
       },
       "temperature": {
         "name": "温度"
@@ -113,14 +66,23 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "自定义提示词"
+      "repetition_penalty": {
+        "name": "重复惩罚"
+      },
+      "video_max_num_frames": {
+        "name": "视频最大帧数"
+      },
+      "video_max_slice_nums": {
+        "name": "视频最大切片数"
+      },
+      "device": {
+        "name": "设备"
       },
       "memory_management": {
         "name": "内存管理"
       },
-      "extra_options": {
-        "name": "额外选项"
+      "seed": {
+        "name": "随机种子"
       }
     },
     "outputs": {
@@ -132,38 +94,32 @@
       }
     }
   },
-  "JC_ExtraOptions": {
-    "display_name": "JoyCaption额外选项",
-    "inputs": {},
-    "outputs": {
-      "0": {
-        "name": "额外选项"
-      }
-    }
-  },
-  "JC_GGUF": {
-    "display_name": "JoyCaption GGUF",
+  "MiniCPM_V_GGUF": {
+    "display_name": "MiniCPM-V GGUF",
     "inputs": {
       "image": {
-        "name": "图像"
+        "name": "图片"
+      },
+      "video": {
+        "name": "视频"
       },
       "model": {
         "name": "模型"
       },
-      "processing_mode": {
-        "name": "处理模式"
+      "preset_prompt": {
+        "name": "预设提示词"
       },
-      "prompt_style": {
-        "name": "提示词风格"
+      "custom_prompt": {
+        "name": "自定义提示词"
       },
-      "caption_length": {
-        "name": "字幕长度"
+      "device": {
+        "name": "设备"
       },
       "memory_management": {
         "name": "内存管理"
       },
-      "extra_options": {
-        "name": "额外选项"
+      "seed": {
+        "name": "随机种子"
       }
     },
     "outputs": {
@@ -172,26 +128,29 @@
       }
     }
   },
-  "JC_GGUF_adv": {
-    "display_name": "JoyCaption GGUF（高级）",
+  "MiniCPM_V_GGUF_adv": {
+    "display_name": "MiniCPM-V GGUF（高级）",
     "inputs": {
       "image": {
-        "name": "图像"
+        "name": "图片"
+      },
+      "video": {
+        "name": "视频"
       },
       "model": {
         "name": "模型"
       },
-      "processing_mode": {
-        "name": "处理模式"
+      "preset_prompt": {
+        "name": "预设提示词"
       },
-      "prompt_style": {
-        "name": "提示词风格"
+      "custom_prompt": {
+        "name": "自定义提示词"
       },
-      "caption_length": {
-        "name": "字幕长度"
+      "system_prompt": {
+        "name": "系统提示词"
       },
       "max_new_tokens": {
-        "name": "最大新词元数"
+        "name": "最大新生成Token数"
       },
       "temperature": {
         "name": "温度"
@@ -202,14 +161,23 @@
       "top_k": {
         "name": "top_k"
       },
-      "custom_prompt": {
-        "name": "自定义提示词"
+      "repetition_penalty": {
+        "name": "重复惩罚"
+      },
+      "video_max_num_frames": {
+        "name": "视频最大帧数"
+      },
+      "video_max_slice_nums": {
+        "name": "视频最大切片数"
+      },
+      "device": {
+        "name": "设备"
       },
       "memory_management": {
         "name": "内存管理"
       },
-      "extra_options": {
-        "name": "额外选项"
+      "seed": {
+        "name": "随机种子"
       }
     },
     "outputs": {
