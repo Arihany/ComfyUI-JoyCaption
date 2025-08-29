@@ -6,7 +6,7 @@
 
 ### **1. 打开 ComfyUI 的命令提示符**
 
-* 进入 `.\ComfyUI_windows_portable\python_embeded`
+* 进入 `.\ComfyUI\python_embedded\python_embeded`
 * 在地址栏中输入 `cmd` 并按回车键。
 
 ---
@@ -28,7 +28,7 @@
 * 在命令提示符中（在步骤 1 中打开的），运行脚本：
 
   ```bash
-  .\python_embeded\python.exe llama_cpp_install.py
+  .\comfyui\python_embeded\python.exe llama_cpp_install.py
   ```
 
 脚本将执行以下操作：
@@ -78,5 +78,6 @@
 
 
 --- 
+
 
 
