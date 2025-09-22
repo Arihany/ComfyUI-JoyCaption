@@ -17,14 +17,30 @@ from JC import JC_ExtraOptions
 os.environ['TRANSFORMERS_VERBOSITY'] = 'error'
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
-if torch.cuda.is_available():
-    torch.backends.cudnn.benchmark = True
-    if hasattr(torch.backends, 'cuda'):
-        if hasattr(torch.backends.cuda, 'matmul'):
-            torch.backends.cuda.matmul.allow_tf32 = True
-        if hasattr(torch.backends.cuda, 'allow_tf32'):
+from contextlib import contextmanager
+
+@contextmanager
+def _local_torch_backend():
+    if not torch.cuda.is_available():
+        yield
+        return
+    old_bench = torch.backends.cudnn.benchmark
+    old_tf32_matmul = getattr(torch.backends.cuda, "matmul", None)
+    old_tf32_matmul_flag = getattr(old_tf32_matmul, "allow_tf32", None) if old_tf32_matmul else None
+    old_tf32_flag = getattr(torch.backends.cuda, "allow_tf32", None)
+    try:
+        torch.backends.cudnn.benchmark = True
+        if old_tf32_matmul is not None:
+            old_tf32_matmul.allow_tf32 = True
+        if old_tf32_flag is not None:
             torch.backends.cuda.allow_tf32 = True
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+        yield
+    finally:
+        torch.backends.cudnn.benchmark = old_bench
+        if old_tf32_matmul is not None and old_tf32_matmul_flag is not None:
+            old_tf32_matmul.allow_tf32 = old_tf32_matmul_flag
+        if old_tf32_flag is not None:
+            torch.backends.cuda.allow_tf32 = old_tf32_flag
 
 with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     config = json.load(f)
@@ -95,17 +111,20 @@ class JC_GGUF_Models:
                 sys.stdout = io.StringIO()
                 sys.stderr = io.StringIO()
 
-                self.model = Llama(
-                    model_path=str(local_path),
-                    n_ctx=n_ctx,
-                    n_batch=n_batch,
-                    n_threads=n_threads,
-                    n_gpu_layers=n_gpu_layers,
-                    verbose=False,
-                    chat_handler=Llava15ChatHandler(clip_model_path=str(mmproj_path)),
-                    offload_kqv=True,
-                    numa=True
-                )
+                if torch.cuda.is_available() and "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+                    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+                with _local_torch_backend():
+                    self.model = Llama(
+                        model_path=str(local_path),
+                        n_ctx=n_ctx,
+                        n_batch=n_batch,
+                        n_threads=n_threads,
+                        n_gpu_layers=n_gpu_layers,
+                        verbose=False,
+                        chat_handler=Llava15ChatHandler(clip_model_path=str(mmproj_path)),
+                        offload_kqv=True,
+                        numa=True
+                    )
 
             finally:
                 sys.stdout = old_stdout
@@ -139,7 +158,8 @@ class JC_GGUF_Models:
                         {"type": "text", "text": prompt.strip()},
                         {"type": "image_url", "image_url": {"url": data_uri}}
                     ]
-                }
+                 },
+                {"role": "assistant", "content": ""}
             ]
 
             completion_params = {
@@ -147,7 +167,11 @@ class JC_GGUF_Models:
                 "max_tokens": max_new_tokens,
                 "temperature": temperature,
                 "top_p": top_p,
-                "stop": ["</s>", "User:", "Assistant:"],
+                "stop": [
+                    "<|eot_id|>", "</s>",
+                    "<|start_header_id|>assistant<|end_header_id|>",
+                    "ASSISTANT:"
+                ],
                 "stream": False,
                 "repeat_penalty": 1.1,
                 "mirostat_mode": 0
@@ -166,7 +190,14 @@ class JC_GGUF_Models:
                 sys.stdout = io.StringIO()
                 sys.stderr = io.StringIO()
 
-                response = self.model.create_chat_completion(**completion_params)
+                with _local_torch_backend():
+                    response = self.model.create_chat_completion(**completion_params)
+                text = response["choices"][0]["message"]["content"]
+                # trim stray assistant header if model tried to start another turn
+                for cut in ("<|start_header_id|>assistant<|end_header_id|>", "ASSISTANT:"):
+                    if cut in text:
+                        text = text.split(cut, 1)[0].rstrip()
+                response["choices"][0]["message"]["content"] = text
 
             finally:
                 sys.stdout = old_stdout
@@ -363,3 +394,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
+
