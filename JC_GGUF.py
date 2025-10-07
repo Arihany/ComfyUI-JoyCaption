@@ -170,7 +170,11 @@ class JC_GGUF_Models:
                 "stop": [
                     "<|eot_id|>", "</s>",
                     "<|start_header_id|>assistant<|end_header_id|>",
-                    "ASSISTANT:"
+                    "<|start_header_id|>user<|end_header_id|>",
+                    "ASSISTANT:", "Assistant:",
+                    "USER:", "User:",
+                    "### Assistant:", "### Human:",
+                    "HUMAN:", "Human:"
                 ],
                 "stream": False,
                 "repeat_penalty": 1.1,
@@ -192,11 +196,28 @@ class JC_GGUF_Models:
 
                 with _local_torch_backend():
                     response = self.model.create_chat_completion(**completion_params)
-                text = response["choices"][0]["message"]["content"]
-                # trim stray assistant header if model tried to start another turn
-                for cut in ("<|start_header_id|>assistant<|end_header_id|>", "ASSISTANT:"):
+                text = response["choices"][0]["message"]["content"] or ""
+
+                banned_markers = (
+                    "<|start_header_id|>assistant<|end_header_id|>",
+                    "<|start_header_id|>user<|end_header_id|>",
+                    "ASSISTANT:", "Assistant:",
+                    "USER:", "User:",
+                    "### Assistant:", "### Human:",
+                    "HUMAN:", "Human:"
+                )
+                first_hit = len(text)
+                for m in banned_markers:
+                    pos = text.find(m)
+                    if pos != -1 and pos < first_hit:
+                        first_hit = pos
+                if first_hit != len(text):
+                    text = text[:first_hit].rstrip()
+
+                for cut in ("<|eot_id|>", "</s>"):
                     if cut in text:
                         text = text.split(cut, 1)[0].rstrip()
+
                 response["choices"][0]["message"]["content"] = text
 
             finally:
@@ -394,5 +415,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
