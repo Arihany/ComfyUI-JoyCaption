@@ -158,8 +158,7 @@ class JC_GGUF_Models:
                         {"type": "text", "text": prompt.strip()},
                         {"type": "image_url", "image_url": {"url": data_uri}}
                     ]
-                 },
-                {"role": "assistant", "content": ""}
+                 }
             ]
 
             completion_params = {
@@ -415,6 +414,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
