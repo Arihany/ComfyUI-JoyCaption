@@ -6,7 +6,6 @@ from torchvision.transforms import ToPILImage
 import json
 from llama_cpp import Llama, llama_backend_free
 from llama_cpp.llama_chat_format import Llava15ChatHandler
-import multiprocessing as mp
 import base64
 import io
 import gc
@@ -41,6 +40,7 @@ except Exception:
 def _get_chat_handler(mmproj_path: Path):
     key = str(mmproj_path.resolve())
     if _CHAT_HANDLER_CACHE_LOCK:
+        with _CHAT_HANDLER_CACHE_LOCK:
             ch = _CHAT_HANDLER_CACHE.get(key)
             if ch is None:
                 try:
@@ -430,7 +430,9 @@ class JC_GGUF:
         try:
             strong_key = _strong_key_from(model, processing_mode)
 
-            if memory_management == "Global Cache":
+            if memory_management == "Clear After Run":
+                pass
+            elif memory_management == "Global Cache":
                 try:
                     if _MODEL_CACHE_LOCK:
                         with _MODEL_CACHE_LOCK:
@@ -504,6 +506,10 @@ class JC_GGUF:
                 _purge_all_cached()
                 _drop_all_chat_handlers()
                 try:
+                    llama_backend_free()
+                except Exception:
+                    pass
+                try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
@@ -525,6 +531,10 @@ class JC_GGUF:
                     self.predictor = None
                 _purge_all_cached()
                 _drop_all_chat_handlers()
+                try:
+                    llama_backend_free()
+                except Exception:
+                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -574,7 +584,9 @@ class JC_GGUF_adv:
         try:
             strong_key = _strong_key_from(model, processing_mode)
             
-            if memory_management == "Global Cache":
+            if memory_management == "Clear After Run":
+                pass
+            elif memory_management == "Global Cache":
                 try:
                     if _MODEL_CACHE_LOCK:
                         with _MODEL_CACHE_LOCK:
@@ -654,6 +666,10 @@ class JC_GGUF_adv:
                 _purge_all_cached()
                 _drop_all_chat_handlers()
                 try:
+                    llama_backend_free()
+                except Exception:
+                    pass
+                try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
@@ -676,6 +692,10 @@ class JC_GGUF_adv:
                 _purge_all_cached()
                 _drop_all_chat_handlers()
                 try:
+                    llama_backend_free()
+                except Exception:
+                    pass
+                try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
@@ -696,6 +716,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
