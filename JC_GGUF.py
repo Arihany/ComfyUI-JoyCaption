@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image
 from torchvision.transforms import ToPILImage
 import json
-from llama_cpp import Llama
+from llama_cpp import Llama, llama_backend_free
 from llama_cpp.llama_chat_format import Llava15ChatHandler
 import base64
 import io
@@ -22,12 +22,41 @@ with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     GGUF_MODELS = config["gguf_models"]
 
 _MODEL_CACHE = {}
-
 try:
     import threading as _t
     _MODEL_CACHE_LOCK = _t.RLock()
 except Exception:
     _MODEL_CACHE_LOCK = None
+
+_CHAT_HANDLER_CACHE = {}
+try:
+    import threading as _t
+    _CHAT_HANDLER_CACHE_LOCK = _t.RLock()
+except Exception:
+    _CHAT_HANDLER_CACHE_LOCK = None
+
+def _get_chat_handler(mmproj_path: Path):
+    key = str(mmproj_path.resolve())
+    if _CHAT_HANDLER_CACHE_LOCK:
+        with _CHAT_HANDLER_CACHE_LOCK:
+            ch = _CHAT_HANDLER_CACHE.get(key)
+            if ch is None:
+                ch = Llava15ChatHandler(clip_model_path=key)
+                _CHAT_HANDLER_CACHE[key] = ch
+            return ch
+    else:
+        ch = _CHAT_HANDLER_CACHE.get(key)
+        if ch is None:
+            ch = Llava15ChatHandler(clip_model_path=key)
+            _CHAT_HANDLER_CACHE[key] = ch
+        return ch
+
+def _drop_all_chat_handlers():
+    if _CHAT_HANDLER_CACHE_LOCK:
+        with _CHAT_HANDLER_CACHE_LOCK:
+            _CHAT_HANDLER_CACHE.clear()
+    else:
+        _CHAT_HANDLER_CACHE.clear()
 
 def _purge_cached_key(strong_key: str):
     """Close and remove a single cached model identified by strong_key."""
@@ -62,6 +91,7 @@ def _purge_all_cached():
 try:
     import atexit
     atexit.register(_purge_all_cached)
+    atexit.register(_drop_all_chat_handlers)
 except Exception:
     pass
 
@@ -128,27 +158,37 @@ class JC_GGUF_Models:
             n_threads = max(4, MODEL_SETTINGS["cpu_threads"])
             n_gpu_layers = -1 if processing_mode == "GPU" else 0
             
+            self.processing_mode = processing_mode
+            chat_handler = _get_chat_handler(mmproj_path)
+            
             self.model = Llama(
-                    model_path=str(local_path),
-                    n_ctx=n_ctx,
-                    n_batch=n_batch,
-                    n_threads=n_threads,
-                    n_gpu_layers=n_gpu_layers,
-                    verbose=False,
-                    chat_handler=Llava15ChatHandler(clip_model_path=str(mmproj_path)),
-                    offload_kqv=True,
-                    numa=(processing_mode == "CPU")
-                )
+                model_path=str(local_path),
+                n_ctx=n_ctx,
+                n_batch=n_batch,
+                n_threads=n_threads,
+                n_gpu_layers=n_gpu_layers,
+                verbose=False,
+                chat_handler=chat_handler,
+                offload_kqv=True,
+                numa=(processing_mode == "CPU")
+            )
         except Exception as e:
             raise RuntimeError(f"Model initialization failed: {str(e)}")
 
     def close(self):
         try:
-            if hasattr(self, "model") and self.model is not None:
+            if getattr(self, "model", None) is not None:
+                try:
+                    if hasattr(self.model, "chat_handler"):
+                        self.model.chat_handler = None
+                except Exception:
+                    pass
                 _free_llama_model(self.model)
         finally:
+            self.model = None
             try:
-                self.model = None
+                if getattr(self, "processing_mode", "CPU") == "GPU":
+                    llama_backend_free()
             except Exception:
                 pass
 
@@ -308,18 +348,18 @@ class JC_GGUF:
                 )
 
             if memory_management == "Clear After Run":
-                _purge_cached_key(strong_key)
-
+                _purge_all_cached()
                 try:
                     if self.predictor is not None:
                         self.predictor.close()
                 finally:
                     self.predictor = None
-
+                _drop_all_chat_handlers()
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
+                        torch.cuda.ipc_collect()
                 except Exception:
                     pass
                 gc.collect()
@@ -430,16 +470,18 @@ class JC_GGUF_adv:
                 )
 
             if memory_management == "Clear After Run":
-                _purge_cached_key(strong_key)
+                _purge_all_cached()
                 try:
                     if self.predictor is not None:
                         self.predictor.close()
                 finally:
                     self.predictor = None
+                _drop_all_chat_handlers()
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
+                        torch.cuda.ipc_collect()
                 except Exception:
                     pass
                 gc.collect()
@@ -470,4 +512,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
