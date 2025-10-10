@@ -14,6 +14,8 @@ from huggingface_hub import hf_hub_download
 from JC import JC_ExtraOptions
 import multiprocessing as mp
 from multiprocessing.queues import Queue
+import queue as _queue
+import time
 
 with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     config = json.load(f)
@@ -123,6 +125,9 @@ def _infer_worker(q: Queue, payload: dict):
     Ensures CUDA/ggml contexts are destroyed with process teardown.
     """
     try:
+        # 하트비트: 프로세스가 살아있음을 부모에게 즉시 알림
+        try: q.put(("stage", "spawned"))
+        except Exception: pass
         # 안전 장치: CLIP(mmproj)는 CPU 고정
         os.environ.setdefault("LLAMA_CLIP_N_GPU_LAYERS", "0")
         processing_mode = payload["processing_mode"]
@@ -136,12 +141,15 @@ def _infer_worker(q: Queue, payload: dict):
             local_model_path=local_model_path,
             local_mmproj_path=local_mmproj_path,
         )
-
+        try: q.put(("stage", "model_ready"))
+        except Exception: pass
         # 이미지 복원
         img_bytes = payload["image_png_bytes"]
         pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
         # 추론
+        try: q.put(("stage", "gen_start"))
+        except Exception: pass
         text = predictor.generate(
             image=pil_img,
             system=payload["system"],
@@ -151,10 +159,15 @@ def _infer_worker(q: Queue, payload: dict):
             top_p=payload["top_p"],
             top_k=payload["top_k"],
         )
+        try: q.put(("stage", "gen_done"))
+        except Exception: pass
 
         q.put(("ok", text))
     except Exception as e:
-        q.put(("err", f"Generation error: {e}"))
+        try:
+            q.put(("err", f"Generation error: {e}"))
+        except Exception:
+            pass
     finally:
         # 예의상 최대한 비워주고 종료
         try:
@@ -173,10 +186,8 @@ def _infer_worker(q: Queue, payload: dict):
                 torch.cuda.ipc_collect()
         except Exception:
             pass
-        try:
-            gc.collect()
-        except Exception:
-            pass
+        try: gc.collect()
+        except Exception: pass
 
 def _generate_in_subprocess(image_png_bytes: bytes,
                             model_name: str,
@@ -211,18 +222,48 @@ def _generate_in_subprocess(image_png_bytes: bytes,
     }
     p = ctx.Process(target=_infer_worker, args=(q, payload))
     p.start()
+    # 워치독: 하트비트/결과 폴링 + 생존 체크
+    deadline = time.time() + timeout_sec
+    last_stage = "spawn_pending"
+    status, data = None, None
     try:
-        status, data = q.get(timeout=timeout_sec)
+        while time.time() < deadline:
+            # 메시지 비동기 수거
+            got = False
+            try:
+                tag, payload = q.get_nowait()
+                got = True
+            except _queue.Empty:
+                tag, payload = None, None
+            if got:
+                if tag == "stage":
+                    last_stage = payload or last_stage
+                else:
+                    status, data = tag, payload
+                    break
+            # 자식이 죽었는데 결과가 없다 = 크래시
+            if not p.is_alive():
+                ec = p.exitcode
+                raise RuntimeError(f"Subprocess died at stage='{last_stage}' exitcode={ec}")
+            time.sleep(0.05)
+        if status is None:
+            # 타임아웃
+            raise RuntimeError(f"Timeout at stage='{last_stage}'")
     except Exception as e:
-        p.terminate()
+        try:
+            p.terminate()
+        except Exception:
+            pass
         p.join()
-        raise RuntimeError(f"Subprocess inference timeout/error: {e}")
-    finally:
-        p.join()
-    if status == "ok":
-        return data
+        raise
     else:
-        raise RuntimeError(data)
+        p.join()
+        if status == "ok":
+            return data
+        elif status == "err":
+            raise RuntimeError(data)
+        else:
+            raise RuntimeError(f"Unexpected message '{status}' at stage='{last_stage}'")
 
 def _purge_cached_key(strong_key: str):
     """Close and remove a single cached model identified by strong_key."""
@@ -766,6 +807,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
