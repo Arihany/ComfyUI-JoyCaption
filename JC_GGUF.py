@@ -29,6 +29,42 @@ try:
 except Exception:
     _MODEL_CACHE_LOCK = None
 
+def _purge_cached_key(strong_key: str):
+    """Close and remove a single cached model identified by strong_key."""
+    obj = None
+    if _MODEL_CACHE_LOCK:
+        with _MODEL_CACHE_LOCK:
+            obj = _MODEL_CACHE.pop(strong_key, None)
+    else:
+        obj = _MODEL_CACHE.pop(strong_key, None)
+    try:
+        if obj is not None:
+            obj.close()
+    except Exception:
+        pass
+
+def _purge_all_cached():
+    """Close and remove all cached models (nuclear option)."""
+    items = []
+    if _MODEL_CACHE_LOCK:
+        with _MODEL_CACHE_LOCK:
+            items = list(_MODEL_CACHE.items())
+            _MODEL_CACHE.clear()
+    else:
+        items = list(_MODEL_CACHE.items())
+        _MODEL_CACHE.clear()
+    for _, obj in items:
+        try:
+            obj.close()
+        except Exception:
+            pass
+
+try:
+    import atexit
+    atexit.register(_purge_all_cached)
+except Exception:
+    pass
+
 def _strong_key_from(model: str, processing_mode: str) -> str:
     model_name = GGUF_MODELS[model]["name"]
     model_filename = Path(model_name).name
@@ -272,24 +308,21 @@ class JC_GGUF:
                 )
 
             if memory_management == "Clear After Run":
-                cached = _MODEL_CACHE.get(strong_key)
-                is_global_obj = (cached is not None) and (self.predictor is cached)
+                _purge_cached_key(strong_key)
 
-                if not is_global_obj:
-                    try:
-                        if self.predictor is not None:
-                            self.predictor.close()
-                    finally:
-                        self.predictor = None
-                    try:
-                        if torch.cuda.is_available():
-                            torch.cuda.synchronize()
-                            torch.cuda.empty_cache()
-                    except Exception:
-                        pass
-                    gc.collect()
-                else:
-                    response = f"{response}\n[Notice] Using global-cached model; skip close(). VRAM stays allocated by design."
+                try:
+                    if self.predictor is not None:
+                        self.predictor.close()
+                finally:
+                    self.predictor = None
+
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
+                gc.collect()
 
             return (response,)
         except Exception as e:
@@ -397,23 +430,19 @@ class JC_GGUF_adv:
                 )
 
             if memory_management == "Clear After Run":
-                cached = _MODEL_CACHE.get(strong_key)
-                is_global_obj = (cached is not None) and (self.predictor is cached)
-                if not is_global_obj:
-                    try:
-                        if self.predictor is not None:
-                            self.predictor.close()
-                    finally:
-                        self.predictor = None
-                    try:
-                        if torch.cuda.is_available():
-                            torch.cuda.synchronize()
-                            torch.cuda.empty_cache()
-                    except Exception:
-                        pass
-                    gc.collect()
-                else:
-                    response = f"{response}\n[Notice] Using global-cached model; skip close(). VRAM stays allocated by design."
+                _purge_cached_key(strong_key)
+                try:
+                    if self.predictor is not None:
+                        self.predictor.close()
+                finally:
+                    self.predictor = None
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
+                gc.collect()
 
             return (prompt, response)
         except Exception as e:
@@ -441,3 +470,4 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
