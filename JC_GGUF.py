@@ -170,10 +170,8 @@ class JC_GGUF_Models:
                     "<|eot_id|>", "</s>",
                     "<|start_header_id|>assistant<|end_header_id|>",
                     "<|start_header_id|>user<|end_header_id|>",
-                    "ASSISTANT", "ASSISTANT:", "Assistant:",
-                    "USER:", "User:",
-                    "### Assistant:", "### Human:",
-                    "HUMAN:", "Human:"
+                    "ASSISTANT", "ASSISTANT:", "Assistant:", "Assistant",
+                    "USER:", "User:", "USER", "User",
                 ],
                 "stream": False,
                 "repeat_penalty": 1.1,
@@ -200,10 +198,8 @@ class JC_GGUF_Models:
                 banned_markers = (
                     "<|start_header_id|>assistant<|end_header_id|>",
                     "<|start_header_id|>user<|end_header_id|>",
-                    "ASSISTANT", "ASSISTANT:", "Assistant:",
-                    "USER:", "User:",
-                    "### Assistant:", "### Human:",
-                    "HUMAN:", "Human:"
+                    "ASSISTANT", "ASSISTANT:", "Assistant:", "Assistant",
+                    "USER:", "User:", "USER", "User",
                 )
                 first_hit = len(text)
                 for m in banned_markers:
@@ -414,6 +410,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
