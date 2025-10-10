@@ -6,6 +6,7 @@ from torchvision.transforms import ToPILImage
 import json
 from llama_cpp import Llama, llama_backend_free
 from llama_cpp.llama_chat_format import Llava15ChatHandler
+import multiprocessing as mp
 import base64
 import io
 import gc
@@ -38,25 +39,48 @@ except Exception:
 def _get_chat_handler(mmproj_path: Path):
     key = str(mmproj_path.resolve())
     if _CHAT_HANDLER_CACHE_LOCK:
-        with _CHAT_HANDLER_CACHE_LOCK:
             ch = _CHAT_HANDLER_CACHE.get(key)
             if ch is None:
-                ch = Llava15ChatHandler(clip_model_path=key)
+                try:
+                    ch = Llava15ChatHandler(clip_model_path=key, clip_n_gpu_layers=0)
+                except TypeError:
+                    os.environ.setdefault("LLAMA_CLIP_N_GPU_LAYERS", "0")
+                    ch = Llava15ChatHandler(clip_model_path=key)
                 _CHAT_HANDLER_CACHE[key] = ch
             return ch
     else:
         ch = _CHAT_HANDLER_CACHE.get(key)
         if ch is None:
-            ch = Llava15ChatHandler(clip_model_path=key)
+            try:
+                ch = Llava15ChatHandler(clip_model_path=key, clip_n_gpu_layers=0)
+            except TypeError:
+                os.environ.setdefault("LLAMA_CLIP_N_GPU_LAYERS", "0")
+                ch = Llava15ChatHandler(clip_model_path=key)
             _CHAT_HANDLER_CACHE[key] = ch
         return ch
 
 def _drop_all_chat_handlers():
     if _CHAT_HANDLER_CACHE_LOCK:
         with _CHAT_HANDLER_CACHE_LOCK:
+            for _, _ch in list(_CHAT_HANDLER_CACHE.items()):
+                for _m in ("close", "free", "__del__"):
+                    try:
+                        getattr(_ch, _m)()
+                    except Exception:
+                        pass
             _CHAT_HANDLER_CACHE.clear()
     else:
+        for _, _ch in list(_CHAT_HANDLER_CACHE.items()):
+            for _m in ("close", "free", "__del__"):
+                try:
+                    getattr(_ch, _m)()
+                except Exception:
+                    pass
         _CHAT_HANDLER_CACHE.clear()
+    try:
+        gc.collect()
+    except Exception:
+        pass
 
 def _purge_cached_key(strong_key: str):
     """Close and remove a single cached model identified by strong_key."""
@@ -202,11 +226,10 @@ class JC_GGUF_Models:
             
             image = image.resize((336, 336), Image.Resampling.BILINEAR)
 
-            img_buffer = io.BytesIO()
-            image.save(img_buffer, format='PNG')
-            img_buffer.seek(0)
-
-            img_base64 = base64.b64encode(img_buffer.read()).decode('utf-8')
+            with io.BytesIO() as img_buffer:
+                image.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                img_base64 = base64.b64encode(img_buffer.read()).decode('utf-8')
             data_uri = f"data:image/png;base64,{img_base64}"
 
             messages = [
@@ -265,7 +288,10 @@ class JC_GGUF_Models:
             
             del messages
             
-            return response["choices"][0]["message"]["content"].strip()
+            out = response["choices"][0]["message"]["content"].strip()
+
+            del response
+            return out
             
         except Exception as e:
             return f"Generation error: {str(e)}"
@@ -348,13 +374,17 @@ class JC_GGUF:
                 )
 
             if memory_management == "Clear After Run":
-                _purge_all_cached()
                 try:
                     if self.predictor is not None:
                         self.predictor.close()
                 finally:
                     self.predictor = None
+                _purge_all_cached()
                 _drop_all_chat_handlers()
+                try:
+                    llama_backend_free()
+                except Exception:
+                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -362,7 +392,10 @@ class JC_GGUF:
                         torch.cuda.ipc_collect()
                 except Exception:
                     pass
-                gc.collect()
+                try:
+                    gc.collect()
+                except Exception:
+                    pass
 
             return (response,)
         except Exception as e:
@@ -372,13 +405,22 @@ class JC_GGUF:
                         self.predictor.close()
                 finally:
                     self.predictor = None
+                _purge_all_cached()
+                _drop_all_chat_handlers()
+                try:
+                    llama_backend_free()
+                except Exception:
+                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
                 except Exception:
                     pass
-                gc.collect()
+                try:
+                    gc.collect()
+                except Exception:
+                    pass
             raise e
 
 class JC_GGUF_adv:
@@ -470,13 +512,17 @@ class JC_GGUF_adv:
                 )
 
             if memory_management == "Clear After Run":
-                _purge_all_cached()
                 try:
                     if self.predictor is not None:
                         self.predictor.close()
                 finally:
                     self.predictor = None
+                _purge_all_cached()
                 _drop_all_chat_handlers()
+                try:
+                    llama_backend_free()
+                except Exception:
+                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -484,7 +530,10 @@ class JC_GGUF_adv:
                         torch.cuda.ipc_collect()
                 except Exception:
                     pass
-                gc.collect()
+                try:
+                    gc.collect()
+                except Exception:
+                    pass
 
             return (prompt, response)
         except Exception as e:
@@ -494,13 +543,22 @@ class JC_GGUF_adv:
                         self.predictor.close()
                 finally:
                     self.predictor = None
+                _purge_all_cached()
+                _drop_all_chat_handlers()
+                try:
+                    llama_backend_free()
+                except Exception:
+                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
                         torch.cuda.empty_cache()
                 except Exception:
                     pass
-                gc.collect()
+                try:
+                    gc.collect()
+                except Exception:
+                    pass
             return ("", f"Error: {str(e)}")
 
 NODE_CLASS_MAPPINGS = {
@@ -512,5 +570,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
