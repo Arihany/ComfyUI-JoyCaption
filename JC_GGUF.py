@@ -8,39 +8,10 @@ from llama_cpp import Llama
 from llama_cpp.llama_chat_format import Llava15ChatHandler
 import base64
 import io
-import sys
 import gc
 import os
 from huggingface_hub import hf_hub_download
 from JC import JC_ExtraOptions
-
-os.environ['TRANSFORMERS_VERBOSITY'] = 'error'
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-
-from contextlib import contextmanager
-
-@contextmanager
-def _local_torch_backend():
-    if not torch.cuda.is_available():
-        yield
-        return
-    old_bench = torch.backends.cudnn.benchmark
-    old_tf32_matmul = getattr(torch.backends.cuda, "matmul", None)
-    old_tf32_matmul_flag = getattr(old_tf32_matmul, "allow_tf32", None) if old_tf32_matmul else None
-    old_tf32_flag = getattr(torch.backends.cuda, "allow_tf32", None)
-    try:
-        torch.backends.cudnn.benchmark = True
-        if old_tf32_matmul is not None:
-            old_tf32_matmul.allow_tf32 = True
-        if old_tf32_flag is not None:
-            torch.backends.cuda.allow_tf32 = True
-        yield
-    finally:
-        torch.backends.cudnn.benchmark = old_bench
-        if old_tf32_matmul is not None and old_tf32_matmul_flag is not None:
-            old_tf32_matmul.allow_tf32 = old_tf32_matmul_flag
-        if old_tf32_flag is not None:
-            torch.backends.cuda.allow_tf32 = old_tf32_flag
 
 with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     config = json.load(f)
@@ -51,6 +22,26 @@ with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     GGUF_MODELS = config["gguf_models"]
 
 _MODEL_CACHE = {}
+
+try:
+    import threading as _t
+    _MODEL_CACHE_LOCK = _t.RLock()
+except Exception:
+    _MODEL_CACHE_LOCK = None
+
+def _strong_key_from(model: str, processing_mode: str) -> str:
+    model_name = GGUF_MODELS[model]["name"]
+    model_filename = Path(model_name).name
+    return f"{model}_{processing_mode}|{model_filename}|ctx{MODEL_SETTINGS['context_window']}"
+
+def _free_llama_model(llm):
+    try:
+        if hasattr(llm, "close") and callable(llm.close):
+            llm.close()
+        elif hasattr(llm, "free") and callable(llm.free):
+            llm.free()
+    except Exception:
+        pass
 
 def build_prompt(caption_type: str, caption_length: str | int, extra_options: list[str], name_input: str) -> str:
     if caption_length == "any":
@@ -101,37 +92,32 @@ class JC_GGUF_Models:
             n_threads = max(4, MODEL_SETTINGS["cpu_threads"])
             n_gpu_layers = -1 if processing_mode == "GPU" else 0
             
-            import sys
-            import io
-
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-
-            try:
-                sys.stdout = io.StringIO()
-                sys.stderr = io.StringIO()
-
-                if torch.cuda.is_available() and "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
-                    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
-                with _local_torch_backend():
-                    self.model = Llama(
-                        model_path=str(local_path),
-                        n_ctx=n_ctx,
-                        n_batch=n_batch,
-                        n_threads=n_threads,
-                        n_gpu_layers=n_gpu_layers,
-                        verbose=False,
-                        chat_handler=Llava15ChatHandler(clip_model_path=str(mmproj_path)),
-                        offload_kqv=True,
-                        numa=True
-                    )
-
-            finally:
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
-            
+            self.model = Llama(
+                    model_path=str(local_path),
+                    n_ctx=n_ctx,
+                    n_batch=n_batch,
+                    n_threads=n_threads,
+                    n_gpu_layers=n_gpu_layers,
+                    verbose=False,
+                    chat_handler=Llava15ChatHandler(clip_model_path=str(mmproj_path)),
+                    offload_kqv=True,
+                    numa=(processing_mode == "CPU")
+                )
         except Exception as e:
             raise RuntimeError(f"Model initialization failed: {str(e)}")
+
+    def close(self):
+        try:
+            if hasattr(self, "model") and self.model is not None:
+                _free_llama_model(self.model)
+        finally:
+            try:
+                self.model = None
+            except Exception:
+                pass
+
+    def __del__(self):
+        self.close()
     
     def generate(self, image: Image.Image, system: str, prompt: str, max_new_tokens: int, temperature: float, top_p: float, top_k: int) -> str:
         try:
@@ -139,9 +125,6 @@ class JC_GGUF_Models:
                 image = image.convert('RGB')
             
             image = image.resize((336, 336), Image.Resampling.BILINEAR)
-            
-            import io
-            import base64
 
             img_buffer = io.BytesIO()
             image.save(img_buffer, format='PNG')
@@ -181,43 +164,28 @@ class JC_GGUF_Models:
             if top_k > 0:
                 completion_params["top_k"] = top_k
 
-            import sys
-            import io
+            response = self.model.create_chat_completion(**completion_params)
+            text = response["choices"][0]["message"]["content"] or ""
 
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-
-            try:
-                sys.stdout = io.StringIO()
-                sys.stderr = io.StringIO()
-
-                with _local_torch_backend():
-                    response = self.model.create_chat_completion(**completion_params)
-                text = response["choices"][0]["message"]["content"] or ""
-
-                banned_markers = (
+            banned_markers = (
                     "<|start_header_id|>assistant<|end_header_id|>",
                     "<|start_header_id|>user<|end_header_id|>",
                     "ASSISTANT", "ASSISTANT:", "Assistant:", "Assistant",
                     "USER:", "User:", "USER", "User",
                 )
-                first_hit = len(text)
-                for m in banned_markers:
-                    pos = text.find(m)
-                    if pos != -1 and pos < first_hit:
-                        first_hit = pos
-                if first_hit != len(text):
-                    text = text[:first_hit].rstrip()
+            first_hit = len(text)
+            for m in banned_markers:
+                pos = text.find(m)
+                if pos != -1 and pos < first_hit:
+                    first_hit = pos
+            if first_hit != len(text):
+                text = text[:first_hit].rstrip()
 
-                for cut in ("<|eot_id|>", "</s>"):
-                    if cut in text:
-                        text = text.split(cut, 1)[0].rstrip()
+            for cut in ("<|eot_id|>", "</s>"):
+                if cut in text:
+                    text = text.split(cut, 1)[0].rstrip()
 
-                response["choices"][0]["message"]["content"] = text
-
-            finally:
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
+            response["choices"][0]["message"]["content"] = text
             
             del messages
             
@@ -225,8 +193,6 @@ class JC_GGUF_Models:
             
         except Exception as e:
             return f"Generation error: {str(e)}"
-        finally:
-            gc.collect()
 
 class JC_GGUF:
     @classmethod
@@ -258,35 +224,43 @@ class JC_GGUF:
     
     def generate(self, image, model, processing_mode, prompt_style, caption_length, memory_management, extra_options=None):
         try:
-            cache_key = f"{model}_{processing_mode}"
-            
+            strong_key = _strong_key_from(model, processing_mode)
+
             if memory_management == "Global Cache":
                 try:
-                    if cache_key in _MODEL_CACHE:
-                        self.predictor = _MODEL_CACHE[cache_key]
+                    if _MODEL_CACHE_LOCK:
+                        with _MODEL_CACHE_LOCK:
+                            pred = _MODEL_CACHE.get(strong_key)
+                            if pred is None:
+                                pred = JC_GGUF_Models(GGUF_MODELS[model]["name"], processing_mode)
+                                _MODEL_CACHE[strong_key] = pred
+                            self.predictor = pred
                     else:
-                        model_name = GGUF_MODELS[model]["name"]
-                        self.predictor = JC_GGUF_Models(model_name, processing_mode)
-                        _MODEL_CACHE[cache_key] = self.predictor
-                except Exception as e:
-                    return (f"Error loading model: {e}",)
-            elif self.predictor is None or self.current_processing_mode != processing_mode or self.current_model != model:
-                if self.predictor is not None:
-                    del self.predictor
-                    self.predictor = None
-                    torch.cuda.empty_cache()
-                try:
-                    model_name = GGUF_MODELS[model]["name"]
-                    self.predictor = JC_GGUF_Models(model_name, processing_mode)
-                    self.current_processing_mode = processing_mode
-                    self.current_model = model
-                except Exception as e:
-                    return (f"Error loading model: {e}",)
+                        self.predictor = _MODEL_CACHE.get(strong_key) or JC_GGUF_Models(GGUF_MODELS[model]["name"], processing_mode)
+                        _MODEL_CACHE[strong_key] = self.predictor
 
-            prompt_text = build_prompt(prompt_style, caption_length, extra_options[0] if extra_options else [], extra_options[1] if extra_options else "{NAME}")
+                    self.current_model = model
+                    self.current_processing_mode = processing_mode
+                except Exception as e:
+                    return (f"Error loading model: {e}",)
+            else:
+                if (self.predictor is None or
+                    self.current_model != model or
+                    self.current_processing_mode != processing_mode):
+                    if self.predictor is not None:
+                        try:
+                            self.predictor.close()
+                        except Exception:
+                            pass
+                        self.predictor = None
+                    self.predictor = JC_GGUF_Models(GGUF_MODELS[model]["name"], processing_mode)
+                    self.current_model = model
+                    self.current_processing_mode = processing_mode
+
+            prompt_text = build_prompt(prompt_style, caption_length, (extra_options[0] if extra_options and len(extra_options) > 0 else []), (extra_options[1] if extra_options and len(extra_options) > 1 else "{NAME}"))
 
             with torch.inference_mode():
-                pil_image = ToPILImage()(image[0].permute(2, 0, 1))
+                pil_image = ToPILImage()(image[0].permute(2, 0, 1).cpu())
                 response = self.predictor.generate(
                     image=pil_image,
                     system=MODEL_SETTINGS["default_system_prompt"],
@@ -298,17 +272,39 @@ class JC_GGUF:
                 )
 
             if memory_management == "Clear After Run":
-                del self.predictor
-                self.predictor = None
-                torch.cuda.empty_cache()
-                gc.collect()
+                cached = _MODEL_CACHE.get(strong_key)
+                is_global_obj = (cached is not None) and (self.predictor is cached)
+
+                if not is_global_obj:
+                    try:
+                        if self.predictor is not None:
+                            self.predictor.close()
+                    finally:
+                        self.predictor = None
+                    try:
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
+                            torch.cuda.empty_cache()
+                    except Exception:
+                        pass
+                    gc.collect()
+                else:
+                    response = f"{response}\n[Notice] Using global-cached model; skip close(). VRAM stays allocated by design."
 
             return (response,)
         except Exception as e:
             if memory_management == "Clear After Run":
-                del self.predictor
-                self.predictor = None
-                torch.cuda.empty_cache()
+                try:
+                    if getattr(self, "predictor", None) is not None:
+                        self.predictor.close()
+                finally:
+                    self.predictor = None
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
                 gc.collect()
             raise e
 
@@ -347,57 +343,92 @@ class JC_GGUF_adv:
     
     def generate(self, image, model, processing_mode, prompt_style, caption_length, max_new_tokens, temperature, top_p, top_k, custom_prompt, memory_management, extra_options=None):
         try:
-            cache_key = f"{model}_{processing_mode}"
+            strong_key = _strong_key_from(model, processing_mode)
             
             if memory_management == "Global Cache":
                 try:
-                    if cache_key in _MODEL_CACHE:
-                        self.predictor = _MODEL_CACHE[cache_key]
+                    if _MODEL_CACHE_LOCK:
+                        with _MODEL_CACHE_LOCK:
+                            pred = _MODEL_CACHE.get(strong_key)
+                            if pred is None:
+                                pred = JC_GGUF_Models(GGUF_MODELS[model]["name"], processing_mode)
+                                _MODEL_CACHE[strong_key] = pred
+                            self.predictor = pred
                     else:
-                        model_name = GGUF_MODELS[model]["name"]
-                        self.predictor = JC_GGUF_Models(model_name, processing_mode)
-                        _MODEL_CACHE[cache_key] = self.predictor
-                except Exception as e:
-                    return ("", f"Error loading model: {e}")
-            elif self.predictor is None or self.current_processing_mode != processing_mode or self.current_model != model:
-                if self.predictor is not None:
-                    del self.predictor
-                    self.predictor = None
-                    torch.cuda.empty_cache()
-                try:
-                    model_name = GGUF_MODELS[model]["name"]
-                    self.predictor = JC_GGUF_Models(model_name, processing_mode)
-                    self.current_processing_mode = processing_mode
+                        self.predictor = _MODEL_CACHE.get(strong_key) or JC_GGUF_Models(GGUF_MODELS[model]["name"], processing_mode)
+                        _MODEL_CACHE[strong_key] = self.predictor
                     self.current_model = model
+                    self.current_processing_mode = processing_mode
                 except Exception as e:
                     return ("", f"Error loading model: {e}")
+            else:
+                if (self.predictor is None or
+                    self.current_model != model or
+                    self.current_processing_mode != processing_mode):
+                    if self.predictor is not None:
+                        try:
+                            self.predictor.close()
+                        except Exception:
+                            pass
+                        self.predictor = None
+                    self.predictor = JC_GGUF_Models(GGUF_MODELS[model]["name"], processing_mode)
+                    self.current_model = model
+                    self.current_processing_mode = processing_mode
 
-            prompt = custom_prompt if custom_prompt.strip() else build_prompt(prompt_style, caption_length, extra_options[0] if extra_options else [], extra_options[1] if extra_options else "{NAME}")
+            prompt = (custom_prompt if custom_prompt.strip()
+                      else build_prompt(
+                          prompt_style,
+                          caption_length,
+                          (extra_options[0] if extra_options and len(extra_options) > 0 else []),
+                          (extra_options[1] if extra_options and len(extra_options) > 1 else "{NAME}")
+                      ))
             system_prompt = MODEL_SETTINGS["default_system_prompt"]
             
-            pil_image = ToPILImage()(image[0].permute(2, 0, 1))
-            response = self.predictor.generate(
-                image=pil_image,
-                system=system_prompt,
-                prompt=prompt,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                top_k=top_k,
-            )
+            with torch.inference_mode():
+                pil_image = ToPILImage()(image[0].permute(2, 0, 1).cpu())
+                response = self.predictor.generate(
+                    image=pil_image,
+                    system=system_prompt,
+                    prompt=prompt,
+                    max_new_tokens=max_new_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
+                )
 
             if memory_management == "Clear After Run":
-                del self.predictor
-                self.predictor = None
-                torch.cuda.empty_cache()
-                gc.collect()
+                cached = _MODEL_CACHE.get(strong_key)
+                is_global_obj = (cached is not None) and (self.predictor is cached)
+                if not is_global_obj:
+                    try:
+                        if self.predictor is not None:
+                            self.predictor.close()
+                    finally:
+                        self.predictor = None
+                    try:
+                        if torch.cuda.is_available():
+                            torch.cuda.synchronize()
+                            torch.cuda.empty_cache()
+                    except Exception:
+                        pass
+                    gc.collect()
+                else:
+                    response = f"{response}\n[Notice] Using global-cached model; skip close(). VRAM stays allocated by design."
 
             return (prompt, response)
         except Exception as e:
             if memory_management == "Clear After Run":
-                del self.predictor
-                self.predictor = None
-                torch.cuda.empty_cache()
+                try:
+                    if self.predictor is not None:
+                        self.predictor.close()
+                finally:
+                    self.predictor = None
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                        torch.cuda.empty_cache()
+                except Exception:
+                    pass
                 gc.collect()
             return ("", f"Error: {str(e)}")
 
@@ -410,9 +441,3 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
-
-
-
-
-
-
