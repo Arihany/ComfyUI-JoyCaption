@@ -37,6 +37,44 @@ try:
 except Exception:
     _CHAT_HANDLER_CACHE_LOCK = None
 
+# ---------- NEW: helper to resolve absolute local asset paths ----------
+def _ensure_local_assets(model_name: str) -> tuple[Path, Path]:
+    """
+    부모 프로세스에서만 호출.
+    모델 GGUF와 mmproj를 로컬 절대경로로 보장해 반환한다.
+    서브프로세스는 경로만 받아서 사용한다.
+    """
+    models_dir = Path(folder_paths.models_dir).resolve()
+    llm_models_dir = (models_dir / "LLM" / "GGUF").resolve()
+    llm_models_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve model gguf
+    model_filename = Path(model_name).name
+    local_model = llm_models_dir / model_filename
+    if not local_model.exists():
+        if "/" not in model_name:
+            raise FileNotFoundError(f"GGUF not found: {local_model}")
+        repo_path, filename = model_name.rsplit("/", 1)
+        local_model = Path(hf_hub_download(
+            repo_id=repo_path,
+            filename=filename,
+            local_dir=str(llm_models_dir),
+            local_dir_use_symlinks=False
+        )).resolve()
+
+    # Resolve mmproj
+    mmproj_filename = "llama-joycaption-beta-one-llava-mmproj-model-f16.gguf"
+    local_mmproj = llm_models_dir / mmproj_filename
+    if not local_mmproj.exists():
+        local_mmproj = Path(hf_hub_download(
+            repo_id="concedo/llama-joycaption-beta-one-hf-llava-mmproj-gguf",
+            filename=mmproj_filename,
+            local_dir=str(llm_models_dir),
+            local_dir_use_symlinks=False
+        )).resolve()
+
+    return local_model, local_mmproj
+
 def _get_chat_handler(mmproj_path: Path):
     key = str(mmproj_path.resolve())
     if _CHAT_HANDLER_CACHE_LOCK:
@@ -95,11 +133,17 @@ def _infer_worker(q: Queue, payload: dict):
     try:
         # 안전 장치: CLIP(mmproj)는 CPU 고정
         os.environ.setdefault("LLAMA_CLIP_N_GPU_LAYERS", "0")
-        model_name = payload["model_name"]
         processing_mode = payload["processing_mode"]
+        local_model_path = Path(payload["local_model_path"]).resolve()
+        local_mmproj_path = Path(payload["local_mmproj_path"]).resolve()
 
         # 모델 생성
-        predictor = JC_GGUF_Models(model_name, processing_mode)
+        predictor = JC_GGUF_Models(
+            model="",  # unused when local paths provided
+            processing_mode=processing_mode,
+            local_model_path=local_model_path,
+            local_mmproj_path=local_mmproj_path,
+        )
 
         # 이미지 복원
         img_bytes = payload["image_png_bytes"]
@@ -169,20 +213,20 @@ def _generate_in_subprocess(image_png_bytes: bytes,
         "top_p": top_p,
         "top_k": top_k,
     }
-    p = ctx.Process(target=_infer_worker, args=(q, payload), daemon=True)
+    p = ctx.Process(target=_infer_worker, args=(q, payload))
     p.start()
     try:
         status, data = q.get(timeout=timeout_sec)
     except Exception as e:
         p.terminate()
-        p.join(5)
+        p.join()
         raise RuntimeError(f"Subprocess inference timeout/error: {e}")
     finally:
-        p.join(5)
+        p.join()
     if status == "ok":
         return data
     else:
-        return data
+        raise RuntimeError(data)
 
 def _purge_cached_key(strong_key: str):
     """Close and remove a single cached model identified by strong_key."""
@@ -249,35 +293,38 @@ def build_prompt(caption_type: str, caption_length: str | int, extra_options: li
     return prompt.format(name=name_input or "{NAME}", length=caption_length, word_count=caption_length)
 
 class JC_GGUF_Models:
-    def __init__(self, model: str, processing_mode: str):
+    def __init__(self, model: str, processing_mode: str,
+                 local_model_path: Path | None = None,
+                 local_mmproj_path: Path | None = None):
         try:
-            models_dir = Path(folder_paths.models_dir).resolve()
-            llm_models_dir = (models_dir / "LLM" / "GGUF").resolve()
-            llm_models_dir.mkdir(parents=True, exist_ok=True)
-            
-            model_filename = Path(model).name
-            local_path = llm_models_dir / model_filename
-            
-            if not local_path.exists():
-                if "/" not in model:
-                    raise ValueError("Invalid model path")
-                repo_path, filename = model.rsplit("/", 1)
-                local_path = Path(hf_hub_download(
-                    repo_id=repo_path,
-                    filename=filename,
-                    local_dir=str(llm_models_dir),
-                    local_dir_use_symlinks=False
-                )).resolve()
-            
-            mmproj_filename = "llama-joycaption-beta-one-llava-mmproj-model-f16.gguf"
-            mmproj_path = llm_models_dir / mmproj_filename
-            if not mmproj_path.exists():
-                mmproj_path = Path(hf_hub_download(
-                    repo_id="concedo/llama-joycaption-beta-one-hf-llava-mmproj-gguf",
-                    filename=mmproj_filename,
-                    local_dir=str(llm_models_dir),
-                    local_dir_use_symlinks=False
-                )).resolve()
+            if local_model_path is not None and local_mmproj_path is not None:
+                local_path = Path(local_model_path).resolve()
+                mmproj_path = Path(local_mmproj_path).resolve()
+            else:
+                models_dir = Path(folder_paths.models_dir).resolve()
+                llm_models_dir = (models_dir / "LLM" / "GGUF").resolve()
+                llm_models_dir.mkdir(parents=True, exist_ok=True)
+                model_filename = Path(model).name
+                local_path = llm_models_dir / model_filename
+                if not local_path.exists():
+                    if "/" not in model:
+                        raise ValueError("Invalid model path")
+                    repo_path, filename = model.rsplit("/", 1)
+                    local_path = Path(hf_hub_download(
+                        repo_id=repo_path,
+                        filename=filename,
+                        local_dir=str(llm_models_dir),
+                        local_dir_use_symlinks=False
+                    )).resolve()
+                mmproj_filename = "llama-joycaption-beta-one-llava-mmproj-model-f16.gguf"
+                mmproj_path = llm_models_dir / mmproj_filename
+                if not mmproj_path.exists():
+                    mmproj_path = Path(hf_hub_download(
+                        repo_id="concedo/llama-joycaption-beta-one-hf-llava-mmproj-gguf",
+                        filename=mmproj_filename,
+                        local_dir=str(llm_models_dir),
+                        local_dir_use_symlinks=False
+                    )).resolve()
             
             n_ctx = MODEL_SETTINGS["context_window"]
             n_batch = 2048
@@ -471,9 +518,13 @@ class JC_GGUF:
                     with io.BytesIO() as buf:
                         pil_img.save(buf, format="PNG")
                         png_bytes = buf.getvalue()
+
+                local_model_path, local_mmproj_path = _ensure_local_assets(GGUF_MODELS[model]["name"])
                 response = _generate_in_subprocess(
                     image_png_bytes=png_bytes,
                     model_name=GGUF_MODELS[model]["name"],
+                    local_model_path=str(local_model_path),
+                    local_mmproj_path=str(local_mmproj_path),
                     processing_mode=processing_mode,
                     system=MODEL_SETTINGS["default_system_prompt"],
                     prompt=prompt_text,
@@ -631,9 +682,12 @@ class JC_GGUF_adv:
                     with io.BytesIO() as buf:
                         pil_img.save(buf, format="PNG")
                         png_bytes = buf.getvalue()
+                local_model_path, local_mmproj_path = _ensure_local_assets(GGUF_MODELS[model]["name"])
                 response = _generate_in_subprocess(
                     image_png_bytes=png_bytes,
                     model_name=GGUF_MODELS[model]["name"],
+                    local_model_path=str(local_model_path),
+                    local_mmproj_path=str(local_mmproj_path),
                     processing_mode=processing_mode,
                     system=system_prompt,
                     prompt=prompt,
@@ -716,6 +770,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
