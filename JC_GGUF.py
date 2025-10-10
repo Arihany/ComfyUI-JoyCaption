@@ -13,6 +13,8 @@ import gc
 import os
 from huggingface_hub import hf_hub_download
 from JC import JC_ExtraOptions
+import multiprocessing as mp
+from multiprocessing.queues import Queue
 
 with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     config = json.load(f)
@@ -81,6 +83,106 @@ def _drop_all_chat_handlers():
         gc.collect()
     except Exception:
         pass
+
+# -------------------------------
+# Subprocess inference utilities
+# -------------------------------
+def _infer_worker(q: Queue, payload: dict):
+    """
+    Isolated process worker: initialize model, run inference once, and exit.
+    Ensures CUDA/ggml contexts are destroyed with process teardown.
+    """
+    try:
+        # 안전 장치: CLIP(mmproj)는 CPU 고정
+        os.environ.setdefault("LLAMA_CLIP_N_GPU_LAYERS", "0")
+        model_name = payload["model_name"]
+        processing_mode = payload["processing_mode"]
+
+        # 모델 생성
+        predictor = JC_GGUF_Models(model_name, processing_mode)
+
+        # 이미지 복원
+        img_bytes = payload["image_png_bytes"]
+        pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+        # 추론
+        text = predictor.generate(
+            image=pil_img,
+            system=payload["system"],
+            prompt=payload["prompt"],
+            max_new_tokens=payload["max_new_tokens"],
+            temperature=payload["temperature"],
+            top_p=payload["top_p"],
+            top_k=payload["top_k"],
+        )
+
+        q.put(("ok", text))
+    except Exception as e:
+        q.put(("err", f"Generation error: {e}"))
+    finally:
+        # 예의상 최대한 비워주고 종료
+        try:
+            if 'predictor' in locals() and predictor is not None:
+                predictor.close()
+        except Exception:
+            pass
+        try:
+            llama_backend_free()
+        except Exception:
+            pass
+        try:
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+        except Exception:
+            pass
+        try:
+            gc.collect()
+        except Exception:
+            pass
+
+def _generate_in_subprocess(image_png_bytes: bytes,
+                            model_name: str,
+                            processing_mode: str,
+                            system: str,
+                            prompt: str,
+                            max_new_tokens: int,
+                            temperature: float,
+                            top_p: float,
+                            top_k: int,
+                            timeout_sec: int = 600) -> str:
+    """
+    Clear After Run 전용: 한 번의 추론을 서브프로세스에서 실행하여
+    CUDA/ggml 컨텍스트를 프로세스 종료로 확실히 해제한다.
+    """
+    ctx = mp.get_context("spawn")
+    q: Queue = ctx.Queue()
+    payload = {
+        "image_png_bytes": image_png_bytes,
+        "model_name": model_name,
+        "processing_mode": processing_mode,
+        "system": system,
+        "prompt": prompt,
+        "max_new_tokens": max_new_tokens,
+        "temperature": temperature,
+        "top_p": top_p,
+        "top_k": top_k,
+    }
+    p = ctx.Process(target=_infer_worker, args=(q, payload), daemon=True)
+    p.start()
+    try:
+        status, data = q.get(timeout=timeout_sec)
+    except Exception as e:
+        p.terminate()
+        p.join(5)
+        raise RuntimeError(f"Subprocess inference timeout/error: {e}")
+    finally:
+        p.join(5)
+    if status == "ok":
+        return data
+    else:
+        return data
 
 def _purge_cached_key(strong_key: str):
     """Close and remove a single cached model identified by strong_key."""
@@ -361,10 +463,16 @@ class JC_GGUF:
 
             prompt_text = build_prompt(prompt_style, caption_length, (extra_options[0] if extra_options and len(extra_options) > 0 else []), (extra_options[1] if extra_options and len(extra_options) > 1 else "{NAME}"))
 
-            with torch.inference_mode():
-                pil_image = ToPILImage()(image[0].permute(2, 0, 1).cpu())
-                response = self.predictor.generate(
-                    image=pil_image,
+            if memory_management == "Clear After Run":
+                with torch.inference_mode():
+                    pil_img = ToPILImage()(image[0].permute(2, 0, 1).cpu()).convert("RGB")
+                    with io.BytesIO() as buf:
+                        pil_img.save(buf, format="PNG")
+                        png_bytes = buf.getvalue()
+                response = _generate_in_subprocess(
+                    image_png_bytes=png_bytes,
+                    model_name=GGUF_MODELS[model]["name"],
+                    processing_mode=processing_mode,
                     system=MODEL_SETTINGS["default_system_prompt"],
                     prompt=prompt_text,
                     max_new_tokens=MODEL_SETTINGS["default_max_tokens"],
@@ -372,19 +480,29 @@ class JC_GGUF:
                     top_p=MODEL_SETTINGS["default_top_p"],
                     top_k=MODEL_SETTINGS["default_top_k"],
                 )
+            else:
+                with torch.inference_mode():
+                    pil_image = ToPILImage()(image[0].permute(2, 0, 1).cpu())
+                    response = self.predictor.generate(
+                        image=pil_image,
+                        system=MODEL_SETTINGS["default_system_prompt"],
+                        prompt=prompt_text,
+                        max_new_tokens=MODEL_SETTINGS["default_max_tokens"],
+                        temperature=MODEL_SETTINGS["default_temperature"],
+                        top_p=MODEL_SETTINGS["default_top_p"],
+                        top_k=MODEL_SETTINGS["default_top_k"],
+                    )
 
             if memory_management == "Clear After Run":
                 try:
                     if self.predictor is not None:
                         self.predictor.close()
+                except Exception:
+                    pass
                 finally:
                     self.predictor = None
                 _purge_all_cached()
                 _drop_all_chat_handlers()
-                try:
-                    llama_backend_free()
-                except Exception:
-                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -407,10 +525,6 @@ class JC_GGUF:
                     self.predictor = None
                 _purge_all_cached()
                 _drop_all_chat_handlers()
-                try:
-                    llama_backend_free()
-                except Exception:
-                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -499,10 +613,16 @@ class JC_GGUF_adv:
                       ))
             system_prompt = MODEL_SETTINGS["default_system_prompt"]
             
-            with torch.inference_mode():
-                pil_image = ToPILImage()(image[0].permute(2, 0, 1).cpu())
-                response = self.predictor.generate(
-                    image=pil_image,
+            if memory_management == "Clear After Run":
+                with torch.inference_mode():
+                    pil_img = ToPILImage()(image[0].permute(2, 0, 1).cpu()).convert("RGB")
+                    with io.BytesIO() as buf:
+                        pil_img.save(buf, format="PNG")
+                        png_bytes = buf.getvalue()
+                response = _generate_in_subprocess(
+                    image_png_bytes=png_bytes,
+                    model_name=GGUF_MODELS[model]["name"],
+                    processing_mode=processing_mode,
                     system=system_prompt,
                     prompt=prompt,
                     max_new_tokens=max_new_tokens,
@@ -510,19 +630,29 @@ class JC_GGUF_adv:
                     top_p=top_p,
                     top_k=top_k,
                 )
+            else:
+                with torch.inference_mode():
+                    pil_image = ToPILImage()(image[0].permute(2, 0, 1).cpu())
+                    response = self.predictor.generate(
+                        image=pil_image,
+                        system=system_prompt,
+                        prompt=prompt,
+                        max_new_tokens=max_new_tokens,
+                        temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
+                    )
 
             if memory_management == "Clear After Run":
                 try:
                     if self.predictor is not None:
                         self.predictor.close()
+                except Exception:
+                    pass
                 finally:
                     self.predictor = None
                 _purge_all_cached()
                 _drop_all_chat_handlers()
-                try:
-                    llama_backend_free()
-                except Exception:
-                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -539,16 +669,12 @@ class JC_GGUF_adv:
         except Exception as e:
             if memory_management == "Clear After Run":
                 try:
-                    if self.predictor is not None:
+                    if getattr(self, "predictor", None) is not None:
                         self.predictor.close()
                 finally:
                     self.predictor = None
                 _purge_all_cached()
                 _drop_all_chat_handlers()
-                try:
-                    llama_backend_free()
-                except Exception:
-                    pass
                 try:
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
@@ -559,7 +685,7 @@ class JC_GGUF_adv:
                     gc.collect()
                 except Exception:
                     pass
-            return ("", f"Error: {str(e)}")
+            raise e
 
 NODE_CLASS_MAPPINGS = {
     "JC_GGUF": JC_GGUF,
@@ -570,6 +696,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
