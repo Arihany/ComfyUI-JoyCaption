@@ -37,18 +37,11 @@ try:
 except Exception:
     _CHAT_HANDLER_CACHE_LOCK = None
 
-# ---------- NEW: helper to resolve absolute local asset paths ----------
 def _ensure_local_assets(model_name: str) -> tuple[Path, Path]:
-    """
-    부모 프로세스에서만 호출.
-    모델 GGUF와 mmproj를 로컬 절대경로로 보장해 반환한다.
-    서브프로세스는 경로만 받아서 사용한다.
-    """
     models_dir = Path(folder_paths.models_dir).resolve()
     llm_models_dir = (models_dir / "LLM" / "GGUF").resolve()
     llm_models_dir.mkdir(parents=True, exist_ok=True)
 
-    # Resolve model gguf
     model_filename = Path(model_name).name
     local_model = llm_models_dir / model_filename
     if not local_model.exists():
@@ -62,7 +55,6 @@ def _ensure_local_assets(model_name: str) -> tuple[Path, Path]:
             local_dir_use_symlinks=False
         )).resolve()
 
-    # Resolve mmproj
     mmproj_filename = "llama-joycaption-beta-one-llava-mmproj-model-f16.gguf"
     local_mmproj = llm_models_dir / mmproj_filename
     if not local_mmproj.exists():
@@ -73,7 +65,7 @@ def _ensure_local_assets(model_name: str) -> tuple[Path, Path]:
             local_dir_use_symlinks=False
         )).resolve()
 
-    return local_model, local_mmproj
+    return local_model.resolve(), local_mmproj.resolve()
 
 def _get_chat_handler(mmproj_path: Path):
     key = str(mmproj_path.resolve())
@@ -188,6 +180,8 @@ def _infer_worker(q: Queue, payload: dict):
 
 def _generate_in_subprocess(image_png_bytes: bytes,
                             model_name: str,
+                            local_model_path: str,
+                            local_mmproj_path: str,
                             processing_mode: str,
                             system: str,
                             prompt: str,
@@ -205,6 +199,8 @@ def _generate_in_subprocess(image_png_bytes: bytes,
     payload = {
         "image_png_bytes": image_png_bytes,
         "model_name": model_name,
+        "local_model_path": local_model_path,
+        "local_mmproj_path": local_mmproj_path,
         "processing_mode": processing_mode,
         "system": system,
         "prompt": prompt,
@@ -770,6 +766,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF": "JoyCaption GGUF",
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
+
 
 
 
