@@ -462,6 +462,7 @@ class JC_GGUF_adv:
             },
             "optional": {
                 "extra_options": ("JOYCAPTION_EXTRA_OPTIONS", {"tooltip": "Additional options to customize the caption generation"}),
+                "kill_worker_after_run": ("BOOLEAN", {"default": False, "tooltip": "On: kill worker process after each run to free ALL VRAM. Off: keep worker for fast consecutive runs"}),
             }
         }
 
@@ -480,7 +481,7 @@ class JC_GGUF_adv:
         except Exception:
             pass
     
-    def generate(self, image, model, prompt_style, caption_length, max_new_tokens, temperature, top_p, top_k, custom_prompt, seed=-1, extra_options=None):
+    def generate(self, image, model, prompt_style, caption_length, max_new_tokens, temperature, top_p, top_k, custom_prompt, seed=-1, extra_options=None, kill_worker_after_run=False):
         try:
 
             model_path, mmproj_path = _resolve_paths(GGUF_MODELS[model]["name"])
@@ -553,6 +554,11 @@ class JC_GGUF_adv:
                     stop=stop_tokens,
                     cut_markers=stop_tokens,
                 )
+                if bool(kill_worker_after_run):
+                    try:
+                        self._wm.close()
+                    except Exception:
+                        pass
 
             return (response,)
         except Exception as e:
