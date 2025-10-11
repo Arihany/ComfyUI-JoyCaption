@@ -20,6 +20,9 @@ from huggingface_hub import hf_hub_download
 import secrets
 import random
 from JC import JC_ExtraOptions
+import threading
+from collections import deque
+from typing import Union, List
 
 with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     config = json.load(f)
@@ -29,65 +32,10 @@ with open(Path(__file__).parent / "jc_data.json", "r", encoding="utf-8") as f:
     CAPTION_LENGTH_CHOICES = config["caption_length_choices"]
     GGUF_MODELS = config["gguf_models"]
 
-_MODEL_CACHE = None
-_MODEL_CACHE_LOCK = None
-
 _CHAT_HANDLER_CACHE = {}
-_CHAT_HANDLER_CACHE_LOCK = None
-try:
-    import threading as _t
-    _CHAT_HANDLER_CACHE_LOCK = _t.RLock()
-except Exception:
-    _CHAT_HANDLER_CACHE_LOCK = None
 
 def _make_chat_handler(mmproj_path: Path, cache: bool = False):
     return Llava15ChatHandler(clip_model_path=str(mmproj_path.resolve()))
-
-def _drop_all_chat_handlers():
-    try:
-        it = list(_CHAT_HANDLER_CACHE.items())
-    except Exception:
-        it = []
-    for _, _ch in it:
-        for _m in ("close", "free", "__del__"):
-            try:
-                getattr(_ch, _m)()
-            except Exception:
-                pass
-    try:
-        _CHAT_HANDLER_CACHE.clear()
-    except Exception:
-        pass
-    try:
-        gc.collect()
-    except Exception:
-        pass
-
-def _purge_cached_key(strong_key: str):
-    return
-
-def _purge_all_cached():
-    return
-try:
-    import atexit
-    atexit.register(_purge_all_cached)
-    atexit.register(_drop_all_chat_handlers)
-except Exception:
-    pass
-
-def _strong_key_from(model: str, processing_mode: str) -> str:
-    model_name = GGUF_MODELS[model]["name"]
-    model_filename = Path(model_name).name
-    return f"{model}_{processing_mode}|{model_filename}|ctx{MODEL_SETTINGS['context_window']}"
-
-def _free_llama_model(llm):
-    try:
-        if hasattr(llm, "close") and callable(llm.close):
-            llm.close()
-        elif hasattr(llm, "free") and callable(llm.free):
-            llm.free()
-    except Exception:
-        pass
 
 _WORKER_SCRIPT = r"""# -*- coding: utf-8 -*-
 import os, sys, json, base64, traceback, pathlib
@@ -142,7 +90,7 @@ def main():
 
     llm = None
     chat = None
-    state = {"model_path": None, "mmproj_path": None, "processing_mode": "GPU"}
+    state = {"model_path": None, "mmproj_path": None}
 
     for line in sys.stdin:
         if not line.strip():
@@ -167,7 +115,6 @@ def main():
                 state.update({
                     "model_path": msg["model_path"],
                     "mmproj_path": msg["mmproj_path"],
-                    "processing_mode": msg.get("processing_mode","GPU"),
                 })
                 chat = Llava15ChatHandler(clip_model_path=state["mmproj_path"])
                 llm = Llama(
@@ -179,7 +126,6 @@ def main():
                     verbose=False,
                     chat_handler=chat,
                     offload_kqv=True,
-                    numa=(state["processing_mode"] == "CPU"),
                 )
                 jprint({"ok": True, "ready": True})
 
@@ -265,12 +211,16 @@ if __name__ == "__main__":
 """
 
 class _WorkerManager:
-    """모델/모드별로 하나의 상주 워커 유지. 격리는 유지하고 재로딩 누수/지연 제거."""
     def __init__(self):
         self.proc = None
         self.stdin = None
         self.stdout = None
         self.sig = None
+        self._lock = threading.RLock()
+        self._stderr_tail = deque(maxlen=2000)
+        self._stderr_thread = None
+        self._tmpdir = None
+        self._timeout = float(MODEL_SETTINGS.get("worker_timeout", 300.0))
 
     def _spawn(self):
         tmpdir = tempfile.mkdtemp(prefix="jcgguf_srv_")
@@ -307,25 +257,38 @@ class _WorkerManager:
         self.stdin = self.proc.stdin
         self.stdout = self.proc.stdout
         self._tmpdir = tmpdir
+        def _drain():
+            try:
+                for line in self.proc.stderr:
+                    if not line:
+                        break
+                    s = line.strip()
+                    if s:
+                        self._stderr_tail.extend(s[-2000:])
+            except Exception:
+                pass
+        self._stderr_thread = threading.Thread(target=_drain, name="jcgguf-stderr", daemon=True)
+        self._stderr_thread.start()
 
     def _send(self, obj):
-        self.stdin.write(json.dumps(obj, ensure_ascii=False) + "\n")
-        self.stdin.flush()
+        try:
+            self.stdin.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            self.stdin.flush()
+        except Exception as e:
+            raise RuntimeError(f"worker send failed: {e}")
 
-    def _recv(self, timeout=120.0):
-        end = time.time() + timeout
+    def _recv(self, timeout=None):
+        if timeout is None:
+            timeout = self._timeout
+        end = time.time() + float(timeout)
         noise = []
         while time.time() < end:
             line = self.stdout.readline()
             if not line:
                 rc = self.proc.poll()
                 if rc is not None:
-                    tail = ""
-                    try:
-                        tail = (self.proc.stderr.read() or "")[-2000:]
-                    except Exception:
-                        pass
-                    raise RuntimeError(f"worker exit rc={rc} stderr_tail={tail}")
+                    tail = "".join(self._stderr_tail)
+                    raise RuntimeError(f"worker exit rc={rc} stderr_tail={tail[-2000:]}")
                 time.sleep(0.01)
                 continue
             s = line.strip()
@@ -342,76 +305,67 @@ class _WorkerManager:
                 if len(noise) < 5:
                     noise.append(("badjson:" + payload)[:240])
                 continue
-        tail = ""
-        try:
-            tail = (self.proc.stderr.read() or "")[-2000:]
-        except Exception:
-            pass
-        raise RuntimeError("worker recv timeout; noise=" + " | ".join(noise) + f" | stderr_tail={tail}")
+        tail = "".join(self._stderr_tail)
+        raise RuntimeError("worker recv timeout; noise=" + " | ".join(noise) + f" | stderr_tail={tail[-2000:]}")
 
-    def ensure(self, *, model_path, mmproj_path, processing_mode, n_ctx, n_batch, n_threads, n_gpu_layers):
-        want = (model_path, mmproj_path, processing_mode)
-        if self.proc is None or self.proc.poll() is not None or self.sig != want:
-            self.close()
-            self._spawn()
-            self._send({
-                "cmd": "init",
-                "model_path": model_path,
-                "mmproj_path": mmproj_path,
-                "processing_mode": processing_mode,
-                "n_ctx": n_ctx,
-                "n_batch": n_batch,
-                "n_threads": n_threads,
-                "n_gpu_layers": n_gpu_layers,
-            })
-            resp = self._recv()
-            if not (isinstance(resp, dict) and resp.get("ok") and resp.get("ready")):
-                raise RuntimeError(f"worker init failed: {resp}")
-            self.sig = want
+    def ensure(self, *, model_path, mmproj_path, n_ctx, n_batch, n_threads, n_gpu_layers):
+        with self._lock:
+            want = (model_path, mmproj_path)
+            if self.proc is None or self.proc.poll() is not None or self.sig != want:
+                self.close()
+                self._spawn()
+                self._send({
+                    "cmd": "init",
+                    "model_path": model_path,
+                    "mmproj_path": mmproj_path,
+                    "n_ctx": n_ctx,
+                    "n_batch": n_batch,
+                    "n_threads": n_threads,
+                    "n_gpu_layers": n_gpu_layers,
+                })
+                resp = self._recv()
+                if not (isinstance(resp, dict) and resp.get("ok") and resp.get("ready")):
+                    raise RuntimeError(f"worker init failed: {resp}")
+                self.sig = want
 
     def infer(self, *, image_path, system_prompt, prompt, max_new_tokens, temperature, top_p, top_k, seed, stop, cut_markers):
-        self._send({
-            "cmd": "infer",
-            "image_path": image_path,
-            "system_prompt": system_prompt,
-            "prompt": prompt,
-            "max_new_tokens": max_new_tokens,
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k,
-            "seed": int(seed),
-            "stop": stop,
-            "cut_markers": cut_markers,
-        })
-        resp = self._recv()
-        txt = resp.get("text", "") or ""
-        try:
-            cut_pos = min([p for m in cut_markers for p in [txt.find(m)] if p >= 0], default=-1)
-            if cut_pos >= 0:
-                txt = txt[:cut_pos].rstrip()
-        except Exception:
-            pass
-        return txt
+        with self._lock:
+            self._send({
+                "cmd": "infer",
+                "image_path": image_path,
+                "system_prompt": system_prompt,
+                "prompt": prompt,
+                "max_new_tokens": max_new_tokens,
+                "temperature": temperature,
+                "top_p": top_p,
+                "top_k": top_k,
+                "seed": int(seed),
+                "stop": stop,
+                "cut_markers": cut_markers,
+            })
+            resp = self._recv()
+            return resp.get("text", "") or ""
 
     def close(self):
-        try:
-            if self.stdin:
+        with self._lock:
+            try:
+                if self.stdin:
+                    try:
+                        self._send({"cmd":"shutdown"})
+                    except Exception:
+                        pass
+            finally:
+                if self.proc is not None:
+                    try: self.proc.kill()
+                    except Exception: pass
+                self.proc = None
+                self.stdin = None
+                self.stdout = None
+                self.sig = None
                 try:
-                    self._send({"cmd":"shutdown"})
+                    shutil.rmtree(getattr(self, "_tmpdir", ""), ignore_errors=True)
                 except Exception:
                     pass
-        finally:
-            if self.proc is not None:
-                try: self.proc.kill()
-                except Exception: pass
-            self.proc = None
-            self.stdin = None
-            self.stdout = None
-            self.sig = None
-            try:
-                shutil.rmtree(getattr(self, "_tmpdir", ""), ignore_errors=True)
-            except Exception:
-                pass
 
 def _resolve_paths(model: str) -> tuple[str, str]:
     models_dir = Path(folder_paths.models_dir).resolve()
@@ -421,20 +375,20 @@ def _resolve_paths(model: str) -> tuple[str, str]:
     model_filename = Path(model).name
     local_path = llm_models_dir / model_filename
     if not local_path.exists():
-        parts = model.split("/")
-        if len(parts) < 3:
-            if len(parts) != 2:
-                raise ValueError("Invalid model path")
-            repo_path = "/".join(parts[:2])
-            filename = parts[-1]
-        else:
-            repo_path = "/".join(parts[:2])
-            filename  = "/".join(parts[2:])
-            repo_id=repo_path,
-            filename=filename,
-            local_dir=str(llm_models_dir),
-            local_dir_use_symlinks=False
-        )).resolve()
+        parts = model.strip("/").split("/")
+        if len(parts) < 2:
+            raise ValueError(f"Invalid model spec: {model!r}")
+        repo_id = "/".join(parts[:2])
+        filename = parts[-1] if len(parts) == 2 else "/".join(parts[2:])
+        try:
+            local_path = Path(hf_hub_download(
+                repo_id=repo_id,
+                filename=filename,
+                local_dir=str(llm_models_dir),
+                local_dir_use_symlinks=False,
+            )).resolve()
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch model from hub: {repo_id}/{filename} :: {e}")
 
     mmproj_filename = "llama-joycaption-beta-one-llava-mmproj-model-f16.gguf"
     mmproj_path = llm_models_dir / mmproj_filename
@@ -447,10 +401,17 @@ def _resolve_paths(model: str) -> tuple[str, str]:
         )).resolve()
     return (str(local_path), str(mmproj_path))
 
-from typing import Union, List
 _LEN_MAP = {
     "very short": 10, "short": 20, "medium": 40, "long": 80, "very long": 120
 }
+class _SafeDict(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+def _escape_braces(s: str) -> str:
+    # Prevent .format() from choking on arbitrary braces in extras
+    return s.replace("{", "{{").replace("}", "}}")
+
 def build_prompt(caption_type: str, caption_length: Union[str, int], extra_options: List[str], name_input: str) -> str:
     if isinstance(caption_type, str) and caption_type.lower() == "none":
         return ""
@@ -461,8 +422,7 @@ def build_prompt(caption_type: str, caption_length: Union[str, int], extra_optio
     else:
         map_idx = 2
     
-    prompt = CAPTION_TYPE_MAP[caption_type][map_idx]
-    tmpl = CAPTION_TYPE_MAP[caption_type][0]
+    tmpl = CAPTION_TYPE_MAP[caption_type][map_idx]
     if isinstance(caption_length, int):
         wc = max(1, caption_length)
     elif isinstance(caption_length, str):
@@ -470,10 +430,14 @@ def build_prompt(caption_type: str, caption_length: Union[str, int], extra_optio
         wc = _LEN_MAP.get(s, 0)
     else:
         wc = 0
-    prompt = tmpl
+    extras = ""
     if extra_options:
-        prompt += " " + " ".join(extra_options)
-    return prompt.format(name=name_input or "{NAME}", length=caption_length, word_count=caption_length)
+        extras = " " + " ".join(_escape_braces(x) for x in extra_options)
+    return tmpl.format_map(_SafeDict({
+        "name": name_input or "{NAME}",
+        "length": caption_length,
+        "word_count": wc
+    })) + extras
 
 class JC_GGUF_adv:
     @classmethod
@@ -484,7 +448,6 @@ class JC_GGUF_adv:
             "required": {
                 "image": ("IMAGE",),
                 "model": (model_list, {"default": model_list[0], "tooltip": "Select the GGUF model to use for caption generation"}),
-                "processing_mode": (["GPU", "CPU"], {"default": "GPU", "tooltip": "GPU: Faster but requires more VRAM\nCPU: Slower but saves VRAM"}),
                 "prompt_style": (style_list, {
                     "default": "Descriptive",
                     "tooltip": "Select the style of caption you want to generate\n'None': no template is applied"
@@ -502,8 +465,8 @@ class JC_GGUF_adv:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("PROMPT", "STRING")
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("CAPTION",)
     FUNCTION = "generate"
     CATEGORY = "🧪AILab/📝JoyCaption"
 
@@ -517,7 +480,7 @@ class JC_GGUF_adv:
         except Exception:
             pass
     
-    def generate(self, image, model, processing_mode, prompt_style, caption_length, max_new_tokens, temperature, top_p, top_k, custom_prompt, seed=-1, extra_options=None):
+    def generate(self, image, model, prompt_style, caption_length, max_new_tokens, temperature, top_p, top_k, custom_prompt, seed=-1, extra_options=None):
         try:
 
             model_path, mmproj_path = _resolve_paths(GGUF_MODELS[model]["name"])
@@ -569,14 +532,14 @@ class JC_GGUF_adv:
                     "ASSISTANT", "ASSISTANT:", "Assistant:", "Assistant",
                     "USER:", "User:", "USER", "User",
                 ]
+                cpu_count = os.cpu_count() or 8
                 self._wm.ensure(
                     model_path=model_path,
                     mmproj_path=mmproj_path,
-                    processing_mode=processing_mode,
                     n_ctx=MODEL_SETTINGS["context_window"],
                     n_batch=1536,
-                    n_threads=max(4, MODEL_SETTINGS["cpu_threads"]),
-                    n_gpu_layers=(-1 if processing_mode == "GPU" else 0),
+                    n_threads=max(1, min(int(MODEL_SETTINGS["cpu_threads"]), cpu_count)),
+                    n_gpu_layers=-1,
                 )
                 response = self._wm.infer(
                     image_path=tmp_png,
@@ -585,15 +548,15 @@ class JC_GGUF_adv:
                     max_new_tokens=max_new_tokens,
                     temperature=temperature,
                     top_p=top_p,
-                    top_k=top_k,
+                    top_k=max(0, int(top_k)),
                     seed=used_seed,
                     stop=stop_tokens,
                     cut_markers=stop_tokens,
                 )
 
-            return (prompt, response)
+            return (response,)
         except Exception as e:
-            return ("", f"Error: {str(e)}")
+            return (f"Error: {str(e)}",)
 
 NODE_CLASS_MAPPINGS = {
     "JC_GGUF_adv": JC_GGUF_adv,
@@ -602,6 +565,3 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "JC_GGUF_adv": "JoyCaption GGUF (Advanced)",
 }
-
-
-
