@@ -1,3 +1,21 @@
+
+---
+
+To anyone who made it this far:
+I’ve customized this to my own needs, so I won’t be submitting PRs.
+
+GGUF
+
+- Removed the standard node (only the advanced node remains).
+- Eliminated any global impact on ComfyUI.
+- Fixed potential VRAM leaks.
+- Reduced hallucinations with GGUF models. (That said, hallucinations are still common with GGUF. If you dislike that, use FP8 instead.)
+
+Since the remaining issues are due to model hallucination, I recommend setting Prompt Style to None and writing the System Prompt yourself. If you were already using the node, delete it and add it again.
+
+---
+
+
 # ComfyUI-JoyCaption
 
 Joy Caption is a ComfyUI custom node powered by the LLaVA model for efficient, stylized image captioning. Caption Tools nodes handle batch image processing and automatic separation of caption text.
@@ -325,6 +343,7 @@ The models are trained on diverse datasets, ensuring:
 
 
 This repository's code is released under the GPL-3.0 License.
+
 
 
 
